@@ -9,32 +9,22 @@ public enum MessageType {
   private MessageType(int val) {}
 
   public String toString() {
-    switch (this) {
-      case CON:
-        return "CON";
-      case NON:
-        return "NON";
-      case ACK:
-        return "ACK";
-      case RESET:
-        return "RESET";
-      default:
-        throw new Error();
-    }
+    return switch (this) {
+      case CON -> "CON";
+      case NON -> "NON";
+      case ACK -> "ACK";
+      case RESET -> "RESET";
+      default -> throw new Error();
+    };
   }
 
   public static MessageType fromString(String s) {
-    switch (s.toLowerCase().trim()) {
-      case "con":
-        return CON;
-      case "non":
-        return NON;
-      case "ack":
-        return ACK;
-      case "reset":
-        return RESET;
-      default:
-        throw new Error();
-    }
+    return switch (s.toLowerCase().trim()) {
+      case "con" -> CON;
+      case "non" -> NON;
+      case "ack" -> ACK;
+      case "reset" -> RESET;
+      default -> throw new Error();
+    };
   }
 }
