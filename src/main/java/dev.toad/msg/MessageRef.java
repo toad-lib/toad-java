@@ -11,13 +11,19 @@ import java.util.List;
  * MessageRef should never be stored in state; invoke `.clone()` first.
  */
 public class MessageRef implements Message {
+
   private final long addr;
 
   private static native int id(long addr);
+
   private static native byte[] token(long addr);
+
   private static native byte[] payload(long addr);
+
   private static native MessageCode code(long addr);
+
   private static native MessageType type(long addr);
+
   private static native MessageOptionRef[] opts(long addr);
 
   public MessageRef(long addr) {

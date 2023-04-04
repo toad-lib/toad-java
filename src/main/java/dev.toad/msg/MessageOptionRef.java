@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MessageOptionRef implements MessageOption {
+
   private final long addr;
   private final long number;
 

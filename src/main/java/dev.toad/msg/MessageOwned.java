@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class MessageOwned implements Message {
+
   private static int id;
   private static byte[] token;
   private static byte[] payload;
@@ -20,10 +21,12 @@ public class MessageOwned implements Message {
     this.type = ref.type();
     this.payload = ref.payloadBytes().clone();
 
-    this.opts = Arrays.asList(ref.optionRefs())
-                      .stream()
-                      .map(MessageOptionRef::clone)
-                      .collect(Collectors.toList());
+    this.opts =
+      Arrays
+        .asList(ref.optionRefs())
+        .stream()
+        .map(MessageOptionRef::clone)
+        .collect(Collectors.toList());
   }
 
   public int id() {

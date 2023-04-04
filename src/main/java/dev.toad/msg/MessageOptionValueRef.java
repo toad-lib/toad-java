@@ -1,7 +1,9 @@
 package dev.toad.msg;
 
 public class MessageOptionValueRef implements MessageOptionValue {
+
   private final long addr;
+
   private native byte[] bytes(long addr);
 
   public MessageOptionValueRef(long addr) {
