@@ -1,0 +1,15 @@
+[package]
+name = "toad-java-glue"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate_type = ["cdylib"]
+
+[dependencies]
+jni = "*"
+toad = {path = "../../toad/toad"}
+toad-jni = {path = "../../toad/toad-jni"}
+toad-msg = "*"
+tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
