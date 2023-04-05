@@ -1,1 +1,3 @@
-java openjdk-20
+java openjdk-20 system
+coursier 2.1.0-RC6 system
+rust 1.68.2 system
