@@ -35,7 +35,9 @@ then run the following in bash or zsh in the directory you cloned the repo to:
 > asdf plugin add coursier # skip if you have system install of coursier
 ```
 
-##### Developing - Tooling - Manual
+##### Developing - Tooling - Non-asdf
+NOTE: skip this section if you are using asdf for tooling version management.
+
 - install [openjdk](https://jdk.java.net/20/) _or equivalent_ version 20 or higher
   - after installing, ensure that `$JAVA_HOME` correctly refers to JDK 20 (`java -version` should output `openjdk version "20" 202x-xx-xx`)
 - install [coursier](https://get-coursier.io/docs/cli-install)
@@ -53,13 +55,11 @@ Then install `sbt`
 ```
 
 #### Developing - Rust
-There is a non-trivial amount of nasty glue code necessary to support the interop between
+There is a non-trivial amount of code necessary to support the interop between
 `toad` (a rust library) and `toad-java` (a java project).
 
 There is a published library [`toad-jni`](https://github.com/toad-lib/toad/tree/main/toad-jni) which contains
 general abstractions that are useful for this project and may be useful to others.
-This includes things like _"high-level rust struct for `java.util.ArrayList`
-doing nice things like implementing [`Iterator`](https://doc.rust-lang.org/nightly/core/iter/trait.Iterator.html)."_
 
 Separately is a rust project in this repository, `./glue/`.
 This is *not* a published crate and is instead source code for a
