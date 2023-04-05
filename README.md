@@ -61,11 +61,11 @@ general abstractions that are useful for this project and may be useful to other
 This includes things like _"high-level rust struct for `java.util.ArrayList`
 doing nice things like implementing [`Iterator`](https://doc.rust-lang.org/nightly/core/iter/trait.Iterator.html)."_
 
-Separately is a rust project in this repository, `./toad-java-glue-rs/`.
+Separately is a rust project in this repository, `./glue/`.
 This is *not* a published crate and is instead source code for a
 shared library specifically to implement native java methods in this java project.
 
-Development tips specific to the glue lib can be found in `./toad-java-glue-rs/README.md`.
+Development tips specific to the glue lib can be found in `./glue/README.md`.
 
 #### Developing - Build
 the sbt command `compile` (`sbt compile` or `compile` in the `sbt` shell)
@@ -73,9 +73,10 @@ is the only required build step for this project.
 
 `sbt compile` can be broken into the following steps:
  1. run `javac` to generate C headers for java files with `native` function requirements
- 1. dump the headers into `./toad-java-glue-rs/target/debug/`
+ 1. dump the headers into `./target/native/debug/`
     - _(dual purpose; a native interface available to manually cross-check against the hard rust implementation, as well as providing an interface to the built library artifact)_
- 1. run `cargo build` within `./toad-java-glue-rs/`
+ 1. run `cargo build` within `./glue/` (builds to `./target/native/`)
+ 1. run `cargo test` within `./glue/`
  1. build java & scala sources to `./target/`
 
 ### Tests

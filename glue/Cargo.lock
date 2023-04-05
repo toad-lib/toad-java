@@ -578,9 +578,9 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8211cccf8f1dce2768a85b6f42b1d232542ecb616584bc9915da1cfc50c3d3d1"
+checksum = "ff5fbc1fb554ad85160c74d6c6db551f164b79917c89509037477ad308d2b4ac"
 dependencies = [
  "jni",
  "toad-array 0.5.0",
