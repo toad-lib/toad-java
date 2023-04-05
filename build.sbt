@@ -32,17 +32,6 @@ lazy val root = project
       "glue.target" -> (baseDirectory.value / "toad-java-glue-rs" / "target" / "debug").toString,
       "java.classTarget" -> (baseDirectory.value / "target" / "scala-3.2.2" / "classes").toString
     ),
-    // Test / compile / javacOptions ++= Seq("--enable-preview", "--release", "20", "-Xlint:preview"),
-    // Test / run / javaOptions ++= Seq(
-    //   "-Djava.library.path=" + path.value("glue.target"),
-    //   "--enable-preview"
-    // ),
-    // Compile / doc / javacOptions ++= Seq("--enable-preview", "--release", "20", "-Xlint:preview"),
-    // Compile / compile / javacOptions ++= Seq("--enable-preview", "--release", "20", "-Xlint:preview"),
-    // Compile / run / javaOptions ++= Seq(
-    //   "-Djava.library.path=" + path.value("glue.target"),
-    //   "--enable-preview"
-    // ),
     ejectHeaders := {
       val files =
         FileTreeView.default.iterator(glob.value("java.sources")).foldLeft("") {
