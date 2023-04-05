@@ -2,6 +2,10 @@
 Implementations of native java methods and state for
 running `toad` with the JVM
 
+### nightly
+this project builds on the nightly channel so that it can
+use the pointer strict provenance API (explained in [# pub static mut RUNTIME](#pub-static-mut-runtime))
+
 ### integers
 all integers stored in java objects to be passed to rust code
 should use the `dev.toad.ffi.uX` compat classes to ensure
@@ -9,10 +13,10 @@ that the primitive casts in rust succeed.
 
 ### unsafe
 #### justification
-aside from the [runtime](#pub-static-mut-runtime), all usage of
-unsafe in safe functions is accompanied by a `// SAFETY` comment
-justifying its use and explaining the risks (or not) of memory defects
-and UB.
+with 1 exception described below in [# pub static mut RUNTIME](#pub-static-mut-runtime),
+all uses of `unsafe` in safe functions are accompanied
+by a `// SAFETY` comment justifying its use and explaining
+the risks (or not) of memory defects and UB.
 
 #### pub static mut RUNTIME
 `unsafe` is used in an **unjustified** manner to cast `long` addresses
