@@ -51,9 +51,10 @@ lazy val root = project
       println(Seq("sh", "-c", cmd) !!)
     },
     cargoBuild := {
-      val cmd =
-        Seq("sh", "-c", "cd glue; cargo rustc -- -Awarnings")
-      println(cmd !!)
+      println(Seq("sh", "-c", "cd glue; cargo rustc -- -Awarnings") !!)
+      println(
+        Seq("sh", "-c", "cd glue; cargo test --quiet") !!
+      ) // very important: test suite validates interfaces
     },
     fullBuild := {
       cargoBuild.value

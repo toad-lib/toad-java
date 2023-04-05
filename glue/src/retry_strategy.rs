@@ -6,6 +6,8 @@ use toad_jni::cls::java;
 use toad_jni::convert::Object;
 use toad_jni::Sig;
 
+use crate::uint;
+
 pub struct RetryStrategy(GlobalRef);
 
 impl RetryStrategy {
@@ -29,13 +31,13 @@ impl RetryStrategy {
   }
 
   pub fn millis_field<'a>(&self, e: &mut JNIEnv<'a>, key: &str) -> Millis {
-    let o = e.get_field(&self.0, key, Sig::class(java::time::Duration::PATH))
+    let o = e.get_field(&self.0, key, Sig::class(uint::u64::PATH))
              .unwrap()
              .l()
              .unwrap();
     let g = e.new_global_ref(o).unwrap();
-    let d = java::time::Duration::from_java(g);
-    Millis::new(d.to_millis(e) as u64)
+    let d = uint::u64::from_java(g);
+    Millis::new(d.to_rust(e))
   }
 
   pub fn to_toad<'a>(self, e: &mut JNIEnv<'a>) -> Strategy {

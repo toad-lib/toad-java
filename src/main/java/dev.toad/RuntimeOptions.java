@@ -51,7 +51,7 @@ public final class RuntimeOptions implements Cloneable {
 
     public Net() {
       this.port = new u16(5683);
-      this.concurrency = new u8((short)1);
+      this.concurrency = new u8((short) 1);
       this.msg = new Msg();
     }
 

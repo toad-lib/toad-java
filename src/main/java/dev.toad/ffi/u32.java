@@ -1,7 +1,8 @@
 package dev.toad.ffi;
 
 public final class u32 {
-  public static final long MAX = (long)(Math.pow(2, 32) - 1);
+
+  public static final long MAX = (long) (Math.pow(2, 32) - 1);
   private final long l;
 
   public u32(long l) {

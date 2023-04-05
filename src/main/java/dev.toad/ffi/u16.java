@@ -1,7 +1,8 @@
 package dev.toad.ffi;
 
 public final class u16 {
-  public static final int MAX = (int)(Math.pow(2, 16) - 1);
+
+  public static final int MAX = (int) (Math.pow(2, 16) - 1);
   private final int l;
 
   public u16(int l) {

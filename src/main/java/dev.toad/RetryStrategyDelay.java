@@ -1,20 +1,31 @@
 package dev.toad;
 
+import dev.toad.ffi.*;
 import java.time.Duration;
 import java.util.Optional;
 
 public final class RetryStrategyDelay extends RetryStrategy {
 
-  public final Duration min;
-  public final Duration max;
+  public final u64 min;
+  public final u64 max;
 
   private static native RetryStrategyDelay fromRust(byte[] mem);
 
   private native byte[] toRust();
 
   public RetryStrategyDelay(Duration min, Duration max) {
-    this.min = min;
-    this.max = max;
+    if (min.isNegative() || max.isNegative()) {
+      throw new IllegalArgumentException(
+        String.format(
+          "{min: %, max: %} neither field may be negative",
+          min.toMillis(),
+          max.toMillis()
+        )
+      );
+    }
+
+    this.min = new u64(min.toMillis());
+    this.max = new u64(max.toMillis());
   }
 
   @Override

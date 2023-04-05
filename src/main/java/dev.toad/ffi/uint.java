@@ -1,15 +1,18 @@
 package dev.toad.ffi;
 
+import java.math.BigInteger;
+
 public class uint {
-  public static void assertWithinRange(double max, double n) {
-    if (n < 0 || n > max) {
-      throw new IllegalArgumentException(String.format("% must be between 0 and %", n, max));
-    }
+
+  public static void assertWithinRange(long max, long n) {
+    uint.assertWithinRange(BigInteger.valueOf(max), BigInteger.valueOf(n));
   }
 
-  public static void assertNatural(double n) {
-    if (n % 1 > 0.0) {
-      throw new IllegalArgumentException(String.format("% must be a whole integer", n));
+  public static void assertWithinRange(BigInteger max, BigInteger n) {
+    if (n.compareTo(BigInteger.ZERO) < 0 || n.compareTo(max) > 0) {
+      throw new IllegalArgumentException(
+        n.toString() + " must be between 0 and " + max.toString()
+      );
     }
   }
 }

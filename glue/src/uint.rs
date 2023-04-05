@@ -1,58 +1,139 @@
-use jni::{JNIEnv, objects::{JObject, JByteArray}};
+use core::primitive as rust;
+
+use jni::objects::{GlobalRef, JByteArray, JObject};
+use jni::JNIEnv;
+use toad_jni::cls::java;
+use toad_jni::convert::Object;
 use toad_jni::Sig;
 
-pub mod path {
-  pub const U64: &'static str = package!(dev.toad.ffi.u64);
-  pub const U32: &'static str = package!(dev.toad.ffi.u32);
-  pub const U16: &'static str = package!(dev.toad.ffi.u16);
-  pub const U8: &'static str = package!(dev.toad.ffi.u8);
+#[allow(non_camel_case_types)]
+pub struct u64(GlobalRef);
+impl u64 {
+  pub const PATH: &'static str = package!(dev.toad.ffi.u64);
+  pub const CTOR: Sig = Sig::new().arg(Sig::class(java::math::BigInteger::PATH))
+                                  .returning(Sig::VOID);
+  pub const BIGINT_VALUE: Sig = Sig::new().returning(Sig::class(java::math::BigInteger::PATH));
+
+  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u64 {
+    let bi = e.call_method(self.0.as_obj(), "bigintValue", Self::BIGINT_VALUE, &[])
+              .unwrap()
+              .l()
+              .unwrap();
+    let bi = e.new_global_ref(bi).unwrap();
+    let bi = java::math::BigInteger::from_java(bi);
+    bi.to_i128(e) as rust::u64
+  }
+
+  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u64) -> Self {
+    let bi = java::math::BigInteger::from_be_bytes(e, &i128::from(u).to_be_bytes());
+    let bi = e.new_object(Self::PATH, Self::CTOR, &[bi.to_java().as_obj().into()])
+              .unwrap();
+    Self(e.new_global_ref(bi).unwrap())
+  }
 }
 
-pub fn u64<'a>(e: &mut JNIEnv<'a>, o: JObject<'a>) -> u64 {
-  let bi = e.call_method(o, "bigintValue", Sig::new().returning(Sig::class("java.math.BigInteger")), &[]).unwrap().l().unwrap();
-  let barr: JByteArray<'a> = e.call_method(bi, "toByteArray", Sig::new().returning(Sig::array_of(Sig::BYTE)), &[]).unwrap().l().unwrap().try_into().unwrap();
+impl Object for u64 {
+  fn from_java(jobj: GlobalRef) -> Self {
+    Self(jobj)
+  }
 
-  let mut bytes = [0i8; 8];
-
-  // BigInteger is a growable two's complement integer
-  //
-  // the "growable" comes from its backing structure being a simple
-  // int array `int[]`, where bytes are added as needed to afford capacity.
-  //
-  // two's-complement means the most significant bit (the first bit of the first byte)
-  // indicates the sign of the integer, where 0 is positive and 1 is negative.
-  //
-  // The rest of the bits are unchanged, meaning the range is from `-(2^(n - 1))`
-  // to `2^(n - 1) - 1`.
-  //
-  // For example, a two's complement i8 would be able to represent `-128` (`0b11111111`),
-  // `0` (`0b00000000`) to `127` (`0b01111111`). for positive integers, the representation is
-  // the same as unsigned integers, meaning we simply need to make sure we don't accidentally
-  // interpret the first bit as part of the integer.
-  //
-  // Here we assume whoever is responsible for BigInteger made sure that it's positive,
-  // so converting the big-endian two's complement int
-  e.get_byte_array_region(&barr, 0, &mut bytes).unwrap();
-
-  // https://docs.oracle.com/en/java/javase/19/docs/api/java.base/java/math/BigInteger.html#toByteArray()
-  //
-  // BigInt.toByteArray actually returns the raw byte representation of the integer, NOT
-  // two's complement `byte`s as the type signature would lead you to believe.
-  //
-  // To interpret these bytes as i8 is incorrect.
-  let bytes = bytes.map(|i| i8::to_be_bytes(i)[0]);
-
-  u64::from_be_bytes(bytes)
+  fn to_java(self) -> GlobalRef {
+    self.0
+  }
 }
 
-pub fn u32<'a>(e: &mut JNIEnv<'a>, o: JObject<'a>) -> u32 {
-  e.call_method(o, "longValue", Sig::new().returning(Sig::LONG), &[]).unwrap().j().unwrap() as u32
+#[allow(non_camel_case_types)]
+pub struct u32(GlobalRef);
+impl u32 {
+  pub const PATH: &'static str = package!(dev.toad.ffi.u32);
+  pub const CTOR: Sig = Sig::new().arg(Sig::LONG).returning(Sig::VOID);
+  pub const LONG_VALUE: Sig = Sig::new().returning(Sig::LONG);
+
+  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u32 {
+    let long = e.call_method(self.0.as_obj(), "longValue", Self::LONG_VALUE, &[])
+                .unwrap()
+                .j()
+                .unwrap();
+    long as rust::u32
+  }
+
+  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u32) -> Self {
+    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i64::from(u).into()])
+              .unwrap();
+    Self(e.new_global_ref(bi).unwrap())
+  }
 }
 
-pub fn u16<'a>(e: &mut JNIEnv<'a>, o: JObject<'a>) -> u16 {
-  e.call_method(o, "intValue", Sig::new().returning(Sig::INT), &[]).unwrap().i().unwrap() as u16
+impl Object for u32 {
+  fn from_java(jobj: GlobalRef) -> Self {
+    Self(jobj)
+  }
+
+  fn to_java(self) -> GlobalRef {
+    self.0
+  }
 }
 
-pub fn u8<'a>(e: &mut JNIEnv<'a>, o: JObject<'a>) -> u8 {
-  e.call_method(o, "shortValue", Sig::new().returning(Sig::SHORT), &[]).unwrap().s().unwrap() as u8
+#[allow(non_camel_case_types)]
+pub struct u16(GlobalRef);
+impl u16 {
+  pub const PATH: &'static str = package!(dev.toad.ffi.u16);
+  pub const CTOR: Sig = Sig::new().arg(Sig::INT).returning(Sig::VOID);
+  pub const INT_VALUE: Sig = Sig::new().returning(Sig::INT);
+
+  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u16 {
+    let int = e.call_method(self.0.as_obj(), "intValue", Self::INT_VALUE, &[])
+               .unwrap()
+               .i()
+               .unwrap();
+    int as rust::u16
+  }
+
+  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u16) -> Self {
+    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i32::from(u).into()])
+              .unwrap();
+    Self(e.new_global_ref(bi).unwrap())
+  }
+}
+
+impl Object for u16 {
+  fn from_java(jobj: GlobalRef) -> Self {
+    Self(jobj)
+  }
+
+  fn to_java(self) -> GlobalRef {
+    self.0
+  }
+}
+
+#[allow(non_camel_case_types)]
+pub struct u8(GlobalRef);
+impl u8 {
+  pub const PATH: &'static str = package!(dev.toad.ffi.u8);
+  pub const CTOR: Sig = Sig::new().arg(Sig::SHORT).returning(Sig::VOID);
+  pub const SHORT_VALUE: Sig = Sig::new().returning(Sig::SHORT);
+
+  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u8 {
+    let int = e.call_method(self.0.as_obj(), "shortValue", Self::SHORT_VALUE, &[])
+               .unwrap()
+               .s()
+               .unwrap();
+    int as rust::u8
+  }
+
+  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u8) -> Self {
+    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i16::from(u).into()])
+              .unwrap();
+    Self(e.new_global_ref(bi).unwrap())
+  }
+}
+
+impl Object for u8 {
+  fn from_java(jobj: GlobalRef) -> Self {
+    Self(jobj)
+  }
+
+  fn to_java(self) -> GlobalRef {
+    self.0
+  }
 }

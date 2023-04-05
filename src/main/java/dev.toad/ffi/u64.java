@@ -1,17 +1,24 @@
 package dev.toad.ffi;
 
+import java.math.BigInteger;
+
 public final class u64 {
-  public static final double MAX = Math.pow(2, 64) - 1;
-  private final double l;
 
-  public u64(double l) {
+  public static final BigInteger MAX = BigInteger.TWO
+    .pow(64)
+    .subtract(BigInteger.ONE);
+  private final BigInteger l;
+
+  public u64(BigInteger l) {
     uint.assertWithinRange(this.MAX, l);
-    uint.assertNatural(l);
-
     this.l = l;
   }
 
-  public double doubleValue() {
+  public u64(long l) {
+    this(BigInteger.valueOf(l));
+  }
+
+  public BigInteger bigintValue() {
     return this.l;
   }
 }
