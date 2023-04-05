@@ -12,6 +12,11 @@ should use the `dev.toad.ffi.uX` compat classes to ensure
 that the primitive casts in rust succeed.
 
 ### unsafe
+#### externs
+no extern fns called by java should be decorated `unsafe` and should instead be
+safe functions with `unsafe` expression bodies to clearly denote the patterns
+of unsafety within.
+
 #### justification
 with 1 exception described below in [# pub static mut RUNTIME](#pub-static-mut-runtime),
 all uses of `unsafe` in safe functions are accompanied
