@@ -27,14 +27,9 @@ pub mod retry_strategy;
 pub mod runtime_config;
 pub mod uint;
 
-// Class:     dev_toad_Runtime
-// Method:    init
-// Signature: (Ldev/toad/RuntimeOptions;)V
-// JNIEXPORT void JNICALL Java_dev_toad_Runtime_init
-//   (JNIEnv *, jclass, jobject);
-pub unsafe extern "system" fn Java_dev_toad_Runtime_init<'local>(mut env: JNIEnv<'local>,
-                                                                 _: JClass<'local>,
-                                                                 cfg: JObject<'local>) {
+pub extern "system" fn Java_dev_toad_Runtime_init<'local>(mut env: JNIEnv<'local>,
+                                                          _: JClass<'local>,
+                                                          cfg: JObject<'local>) {
 }
 
 #[cfg(test)]

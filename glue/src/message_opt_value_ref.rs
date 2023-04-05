@@ -28,11 +28,10 @@ impl<'local> MessageOptValueRef<'local> {
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_dev_toad_msg_MessageOptionValueRef_bytes<'local>(mut env: JNIEnv<'local>,
-                                                                                    _: JClass<'local>,
-                                                                                    p: i64)
-                                                                                    -> jobject {
-  env.byte_array_from_slice(MessageOptValueRef::ptr(p).as_bytes())
-     .unwrap()
-     .as_raw()
+pub extern "system" fn Java_dev_toad_msg_MessageOptionValueRef_bytes<'local>(mut env: JNIEnv<'local>,
+                                                                             _: JClass<'local>,
+                                                                             p: i64)
+                                                                             -> jobject {
+  let val = unsafe { MessageOptValueRef::ptr(p) };
+  env.byte_array_from_slice(val.as_bytes()).unwrap().as_raw()
 }

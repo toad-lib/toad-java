@@ -40,19 +40,19 @@ impl<'local> MessageOptRef<'local> {
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_dev_toad_msg_MessageOptionRef_number<'local>(mut env: JNIEnv<'local>,
-                                                                                o: JObject<'local>,
-                                                                                p: i64)
-                                                                                -> i64 {
+pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_number<'local>(mut env: JNIEnv<'local>,
+                                                                         o: JObject<'local>,
+                                                                         p: i64)
+                                                                         -> i64 {
   MessageOptRef(o).number(&mut env).0 as i64
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn Java_dev_toad_msg_MessageOptionRef_values<'local>(mut env: JNIEnv<'local>,
-                                                                                _: JClass<'local>,
-                                                                                p: i64)
-                                                                                -> jobject {
-  let o = &MessageOptRef::values_ptr(p);
+pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_values<'local>(mut env: JNIEnv<'local>,
+                                                                         _: JClass<'local>,
+                                                                         p: i64)
+                                                                         -> jobject {
+  let o = &unsafe { MessageOptRef::values_ptr(p) };
 
   let value_ref_class = MessageOptValueRef::class(&mut env);
   let mut arr = env.new_object_array(o.len() as i32, value_ref_class, JObject::null())
