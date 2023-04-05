@@ -18,6 +18,7 @@ macro_rules! package {
   (ext $start:ident.$($thing:ident).+) => {concat!(stringify!($start), $("/", stringify!($thing)),+)};
 }
 
+pub mod uint;
 pub mod message_code;
 pub mod message_opt_ref;
 pub mod message_opt_value_ref;
@@ -39,7 +40,10 @@ pub unsafe extern "system" fn Java_dev_toad_Runtime_init<'local>(mut env: JNIEnv
 #[cfg(test)]
 mod tests {
   use jni::{InitArgsBuilder, JavaVM};
+  use toad::retry::Strategy;
+  use toad::time::Millis;
 
+  use crate::retry_strategy::RetryStrategy;
   use crate::runtime_config::RuntimeConfig;
 
   #[test]
@@ -64,5 +68,13 @@ mod tests {
 
     let r = RuntimeConfig::new(e);
     assert_eq!(r.to_toad(e), Default::default());
+
+    let r = Strategy::Exponential { init_min: Millis::new(0),
+                                    init_max: Millis::new(100) };
+    assert_eq!(RetryStrategy::from_toad(e, r).to_toad(e), r);
+
+    let r = Strategy::Delay { min: Millis::new(0),
+                              max: Millis::new(100) };
+    assert_eq!(RetryStrategy::from_toad(e, r).to_toad(e), r);
   }
 }

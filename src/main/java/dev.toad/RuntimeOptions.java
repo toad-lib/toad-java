@@ -1,5 +1,6 @@
 package dev.toad;
 
+import dev.toad.ffi.*;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Function;
@@ -44,13 +45,13 @@ public final class RuntimeOptions implements Cloneable {
 
   public final class Net implements Cloneable {
 
-    private short port;
-    private short concurrency;
+    private u16 port;
+    private u8 concurrency;
     private Msg msg;
 
     public Net() {
-      this.port = 5683;
-      this.concurrency = 1;
+      this.port = new u16(5683);
+      this.concurrency = new u8((short)1);
       this.msg = new Msg();
     }
 
@@ -77,12 +78,12 @@ public final class RuntimeOptions implements Cloneable {
       return self;
     }
 
-    public short port() {
-      return this.port;
+    public int port() {
+      return this.port.intValue();
     }
 
     public short concurrency() {
-      return this.concurrency;
+      return this.concurrency.shortValue();
     }
 
     public Msg msg() {
@@ -91,14 +92,14 @@ public final class RuntimeOptions implements Cloneable {
 
     public Net withPort(short port) {
       return this.with(self -> {
-          self.port = port;
+          self.port = new u16(port);
           return self;
         });
     }
 
     public Net withConcurrency(short conc) {
       return this.with(self -> {
-          self.concurrency = conc;
+          self.concurrency = new u8(conc);
           return self;
         });
     }
@@ -113,8 +114,8 @@ public final class RuntimeOptions implements Cloneable {
 
   public final class Msg implements Cloneable {
 
-    private Optional<Integer> tokenSeed = Optional.empty();
-    private Optional<Integer> probingRateBytesPerSecond = Optional.empty();
+    private Optional<u16> tokenSeed = Optional.empty();
+    private Optional<u16> probingRateBytesPerSecond = Optional.empty();
     private Optional<Duration> multicastResponseLeisure = Optional.empty();
     private Con con;
     private Non non;
@@ -152,11 +153,11 @@ public final class RuntimeOptions implements Cloneable {
     }
 
     public Optional<Integer> tokenSeed() {
-      return this.tokenSeed;
+      return this.tokenSeed.map(u16 -> u16.intValue());
     }
 
     public Optional<Integer> probingRateBytesPerSecond() {
-      return this.probingRateBytesPerSecond;
+      return this.probingRateBytesPerSecond.map(u16 -> u16.intValue());
     }
 
     public Optional<Duration> multicastResponseLeisure() {
@@ -173,14 +174,14 @@ public final class RuntimeOptions implements Cloneable {
 
     public Msg withTokenSeed(int tokenSeed) {
       return this.with(self -> {
-          self.tokenSeed = Optional.of(tokenSeed);
+          self.tokenSeed = Optional.of(new u16(tokenSeed));
           return self;
         });
     }
 
     public Msg withProbingRateBytesBerSecond(int bps) {
       return this.with(m -> {
-          m.probingRateBytesPerSecond = Optional.of(bps);
+          m.probingRateBytesPerSecond = Optional.of(new u16(bps));
           return m;
         });
     }
@@ -210,7 +211,7 @@ public final class RuntimeOptions implements Cloneable {
 
       private Optional<RetryStrategy> ackedRetryStrategy = Optional.empty();
       private Optional<RetryStrategy> unackedRetryStrategy = Optional.empty();
-      private Optional<Integer> maxAttempts = Optional.empty();
+      private Optional<u16> maxAttempts = Optional.empty();
 
       public Con() {}
 
@@ -237,7 +238,7 @@ public final class RuntimeOptions implements Cloneable {
       }
 
       public Optional<Integer> maxAttempts() {
-        return this.maxAttempts;
+        return this.maxAttempts.map(u16 -> u16.intValue());
       }
 
       public Con withAckedRetryStrategy(RetryStrategy r) {
@@ -256,7 +257,7 @@ public final class RuntimeOptions implements Cloneable {
 
       public Con withMaxAttempts(int a) {
         return this.with(s -> {
-            s.maxAttempts = Optional.of(a);
+            s.maxAttempts = Optional.of(new u16(a));
             return s;
           });
       }
@@ -270,7 +271,7 @@ public final class RuntimeOptions implements Cloneable {
     public final class Non implements Cloneable {
 
       private Optional<RetryStrategy> retryStrategy = Optional.empty();
-      private Optional<Integer> maxAttempts = Optional.empty();
+      private Optional<u16> maxAttempts = Optional.empty();
 
       public Non() {}
 
@@ -292,7 +293,7 @@ public final class RuntimeOptions implements Cloneable {
       }
 
       public Optional<Integer> maxAttempts() {
-        return this.maxAttempts;
+        return this.maxAttempts.map(u16 -> u16.intValue());
       }
 
       public Non withRetryStrategy(RetryStrategy r) {
@@ -304,7 +305,7 @@ public final class RuntimeOptions implements Cloneable {
 
       public Non withMaxAttempts(int a) {
         return this.with(s -> {
-            s.maxAttempts = Optional.of(a);
+            s.maxAttempts = Optional.of(new u16(a));
             return s;
           });
       }

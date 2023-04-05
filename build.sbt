@@ -5,7 +5,7 @@ import sbt.nio.file.FileTreeView
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 val scala3Version = "3.2.2"
-val cargoBuild = taskKey[Unit]("cd ./toad-java-glue-rs; cargo build")
+val cargoBuild = taskKey[Unit]("cd ./glue; cargo build")
 val ejectHeaders = taskKey[Unit]("Generate C headers for FFI")
 val fullBuild = taskKey[Unit]("cargoBuild > ejectHeaders")
 val glob = settingKey[Map[String, Glob]]("globs")
@@ -14,7 +14,7 @@ val path = settingKey[Map[String, String]]("paths")
 fork := true
 
 javaOptions += "--enable-preview"
-javacOptions ++= Seq("--enable-preview", "--release", "20", "-Xlint:preview")
+javacOptions ++= Seq("--enable-preview", "--release", "20")
 
 lazy val root = project
   .in(file("."))
@@ -25,11 +25,11 @@ lazy val root = project
     libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
     glob := Map(
       "java.sources" -> baseDirectory.value.toGlob / "src" / "main" / "java" / ** / "*.java",
-      "glue.sources" -> baseDirectory.value.toGlob / "toad-java-glue-rs" / "src" / ** / "*.rs"
+      "glue.sources" -> baseDirectory.value.toGlob / "glue" / "src" / ** / "*.rs"
     ),
     path := Map(
-      "glue.base" -> (baseDirectory.value / "toad-java-glue-rs").toString,
-      "glue.target" -> (baseDirectory.value / "toad-java-glue-rs" / "target" / "debug").toString,
+      "glue.base" -> (baseDirectory.value / "glue").toString,
+      "glue.target" -> (baseDirectory.value / "target" / "glue" / "debug").toString,
       "java.classTarget" -> (baseDirectory.value / "target" / "scala-3.2.2" / "classes").toString
     ),
     ejectHeaders := {
@@ -52,7 +52,7 @@ lazy val root = project
     },
     cargoBuild := {
       val cmd =
-        Seq("sh", "-c", "cd toad-java-glue-rs; cargo rustc -- -Awarnings")
+        Seq("sh", "-c", "cd glue; cargo rustc -- -Awarnings")
       println(cmd !!)
     },
     fullBuild := {
