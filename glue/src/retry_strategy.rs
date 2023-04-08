@@ -1,89 +1,103 @@
-use jni::objects::{GlobalRef, JObject};
-use jni::JNIEnv;
 use toad::retry::Strategy;
 use toad::time::Millis;
-use toad_jni::cls::java;
-use toad_jni::convert::Object;
-use toad_jni::Sig;
+use toad_jni::java::{self, Object};
 
 use crate::uint;
 
-pub struct RetryStrategy(GlobalRef);
+pub struct RetryStrategyExp(java::lang::Object);
 
-impl RetryStrategy {
-  pub const PATH: &'static str = package!(dev.toad.RetryStrategy);
+java::object_newtype!(RetryStrategyExp);
+impl java::Class for RetryStrategyExp {
+  const PATH: &'static str = package!(dev.toad.RetryStrategyExponential);
+}
 
-  pub const EXPONENTIAL: &'static str = package!(dev.toad.RetryStrategyExponential);
-  pub const EXPONENTIAL_CTOR: Sig = Sig::new().arg(Sig::class(java::time::Duration::PATH))
-                                              .arg(Sig::class(java::time::Duration::PATH))
-                                              .returning(Sig::VOID);
-
-  pub const DELAY: &'static str = package!(dev.toad.RetryStrategyDelay);
-  pub const DELAY_CTOR: Sig = Sig::new().arg(Sig::class(java::time::Duration::PATH))
-                                        .arg(Sig::class(java::time::Duration::PATH))
-                                        .returning(Sig::VOID);
-
-  pub fn exp<'a>(&self, e: &mut JNIEnv<'a>) -> Self {
-    let o = e.new_object(Self::PATH, Sig::new().returning(Sig::VOID), &[])
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    Self(g)
+impl RetryStrategyExp {
+  pub fn new(e: &mut java::Env, init_min: Millis, init_max: Millis) -> Self {
+    let (init_min, init_max) = (java::time::Duration::of_millis(e, init_min.0 as i64),
+                                java::time::Duration::of_millis(e, init_max.0 as i64));
+    static CTOR: java::Constructor<RetryStrategyExp,
+                                     fn(java::time::Duration, java::time::Duration)> =
+      java::Constructor::new();
+    CTOR.invoke(e, init_min, init_max)
   }
 
-  pub fn millis_field<'a>(&self, e: &mut JNIEnv<'a>, key: &str) -> Millis {
-    let o = e.get_field(&self.0, key, Sig::class(uint::u64::PATH))
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    let d = uint::u64::from_java(g);
-    Millis::new(d.to_rust(e))
+  pub fn as_super(self) -> RetryStrategy {
+    RetryStrategy(self.0)
   }
 
-  pub fn to_toad<'a>(self, e: &mut JNIEnv<'a>) -> Strategy {
-    if e.is_instance_of(&self.0, Self::EXPONENTIAL).unwrap() {
-      Strategy::Exponential { init_min: self.millis_field(e, "initMin"),
-                              init_max: self.millis_field(e, "initMax") }
-    } else {
-      Strategy::Delay { min: self.millis_field(e, "min"),
-                        max: self.millis_field(e, "max") }
-    }
+  pub fn init_min(&self, e: &mut java::Env) -> Millis {
+    static INIT_MIN: java::Field<RetryStrategyExp, uint::u64> = java::Field::new("initMin");
+    Millis::new(INIT_MIN.get(e, self).to_rust(e))
   }
 
-  pub fn from_toad<'a>(e: &mut JNIEnv<'a>, s: Strategy) -> Self {
-    let g = match s {
-      | Strategy::Delay { min, max } => {
-        let (min, max) = (java::time::Duration::of_millis(e, min.0 as i64),
-                          java::time::Duration::of_millis(e, max.0 as i64));
-        let (min, max) = (min.to_java(), max.to_java());
-        let o = e.new_object(Self::DELAY,
-                             Self::DELAY_CTOR,
-                             &[min.as_obj().into(), max.as_obj().into()])
-                 .unwrap();
-        e.new_global_ref(o).unwrap()
-      },
-      | Strategy::Exponential { init_min, init_max } => {
-        let (init_min, init_max) = (java::time::Duration::of_millis(e, init_min.0 as i64),
-                                    java::time::Duration::of_millis(e, init_max.0 as i64));
-        let (init_min, init_max) = (init_min.to_java(), init_max.to_java());
-        let o = e.new_object(Self::EXPONENTIAL,
-                             Self::EXPONENTIAL_CTOR,
-                             &[init_min.as_obj().into(), init_max.as_obj().into()])
-                 .unwrap();
-        e.new_global_ref(o).unwrap()
-      },
-    };
-
-    Self(g)
+  pub fn init_max(&self, e: &mut java::Env) -> Millis {
+    static INIT_MAX: java::Field<RetryStrategyExp, uint::u64> = java::Field::new("initMax");
+    Millis::new(INIT_MAX.get(e, self).to_rust(e))
   }
 }
 
-impl Object for RetryStrategy {
-  fn from_java(jobj: GlobalRef) -> Self {
-    Self(jobj)
+pub struct RetryStrategyDelay(java::lang::Object);
+
+java::object_newtype!(RetryStrategyDelay);
+impl java::Class for RetryStrategyDelay {
+  const PATH: &'static str = package!(dev.toad.RetryStrategyDelay);
+}
+
+impl RetryStrategyDelay {
+  pub fn new(e: &mut java::Env, min: Millis, max: Millis) -> Self {
+    let (min, max) = (java::time::Duration::of_millis(e, min.0 as i64),
+                      java::time::Duration::of_millis(e, max.0 as i64));
+    static CTOR: java::Constructor<RetryStrategyDelay,
+                                     fn(java::time::Duration, java::time::Duration)> =
+      java::Constructor::new();
+    CTOR.invoke(e, min, max)
   }
 
-  fn to_java(self) -> GlobalRef {
-    self.0
+  pub fn as_super(self) -> RetryStrategy {
+    RetryStrategy(self.0)
+  }
+
+  pub fn min(&self, e: &mut java::Env) -> Millis {
+    static MIN: java::Field<RetryStrategyDelay, uint::u64> = java::Field::new("min");
+    Millis::new(MIN.get(e, self).to_rust(e))
+  }
+
+  pub fn max(&self, e: &mut java::Env) -> Millis {
+    static MAX: java::Field<RetryStrategyDelay, uint::u64> = java::Field::new("max");
+    Millis::new(MAX.get(e, self).to_rust(e))
+  }
+}
+
+pub struct RetryStrategy(java::lang::Object);
+
+java::object_newtype!(RetryStrategy);
+impl java::Class for RetryStrategy {
+  const PATH: &'static str = package!(dev.toad.RetryStrategy);
+}
+
+impl RetryStrategy {
+  pub fn to_toad(self, e: &mut java::Env) -> Strategy {
+    if self.0.is_instance_of::<RetryStrategyExp>(e) {
+      let me = RetryStrategyExp(self.0);
+      Strategy::Exponential { init_min: me.init_min(e),
+                              init_max: me.init_max(e) }
+    } else if self.0.is_instance_of::<RetryStrategyDelay>(e) {
+      let me = RetryStrategyDelay(self.0);
+      Strategy::Delay { min: me.min(e),
+                        max: me.max(e) }
+    } else {
+      let cls = e.get_object_class(self.0).unwrap();
+      panic!("unknown inheritor of RetryStrategy: {}",
+             java::lang::Object::from_local(e, cls).to_string(e));
+    }
+  }
+
+  pub fn from_toad(e: &mut java::Env, s: Strategy) -> Self {
+    match s {
+      | Strategy::Delay { min, max } => RetryStrategyDelay::new(e, min, max).as_super(),
+      | Strategy::Exponential { init_min, init_max } => {
+        RetryStrategyExp::new(e, init_min, init_max).as_super()
+      },
+    }
   }
 }

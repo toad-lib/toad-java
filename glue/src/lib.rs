@@ -1,15 +1,7 @@
 #![feature(strict_provenance)]
 
-use jni::objects::{JClass, JObject};
-use jni::JNIEnv;
-use toad::std::{dtls, Platform as Std};
-use toad::step::runtime::std::Runtime;
-
-pub static mut RUNTIME: *const Std<dtls::N, Runtime<dtls::N>> = std::ptr::null();
-
-pub unsafe fn with_runtime_provenance<T>(addr: i64) -> *mut T {
-  RUNTIME.with_addr(addr as usize).cast::<T>().cast_mut()
-}
+pub type Runtime =
+  toad::std::Platform<toad::std::dtls::N, toad::step::runtime::std::Runtime<toad::std::dtls::N>>;
 
 #[macro_export]
 macro_rules! package {
@@ -18,33 +10,31 @@ macro_rules! package {
   (ext $start:ident.$($thing:ident).+) => {concat!(stringify!($start), $("/", stringify!($thing)),+)};
 }
 
+pub mod mem;
 pub mod message_code;
 pub mod message_opt_ref;
 pub mod message_opt_value_ref;
 pub mod message_ref;
 pub mod message_type;
 pub mod retry_strategy;
+pub mod runtime;
 pub mod runtime_config;
 pub mod uint;
-
-pub extern "system" fn Java_dev_toad_Runtime_init<'local>(mut env: JNIEnv<'local>,
-                                                          _: JClass<'local>,
-                                                          cfg: JObject<'local>) {
-}
 
 #[cfg(test)]
 mod tests {
   use std::sync::Once;
 
-  use jni::{InitArgsBuilder, JNIEnv, JavaVM};
+  use jni::{InitArgsBuilder, JavaVM};
   use toad::retry::Strategy;
   use toad::time::Millis;
+  use toad_jni::java;
 
   use crate::retry_strategy::RetryStrategy;
   use crate::runtime_config::RuntimeConfig;
 
   static INIT: Once = Once::new();
-  pub fn init<'a>() -> JNIEnv<'a> {
+  pub fn init<'a>() -> java::Env<'a> {
     INIT.call_once(|| {
       let jvm =
         JavaVM::new(InitArgsBuilder::new().option("--enable-preview")
@@ -54,8 +44,9 @@ mod tests {
       toad_jni::global::init_with(jvm);
     });
 
-    toad_jni::global::jvm().attach_current_thread_permanently();
-    toad_jni::global::env()
+    toad_jni::global::jvm().attach_current_thread_permanently()
+                           .unwrap();
+    toad_jni::global::jvm().get_env().unwrap()
   }
 
   #[test]

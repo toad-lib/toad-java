@@ -1,2 +1,2 @@
 [build]
-target-dir = "../target/native"
+target-dir = "../target/glue"

@@ -1,139 +1,86 @@
 use core::primitive as rust;
 
-use jni::objects::{GlobalRef, JByteArray, JObject};
-use jni::JNIEnv;
-use toad_jni::cls::java;
-use toad_jni::convert::Object;
-use toad_jni::Sig;
+use toad_jni::java;
 
 #[allow(non_camel_case_types)]
-pub struct u64(GlobalRef);
+pub struct u64(java::lang::Object);
+
+java::object_newtype!(u64);
+impl java::Class for u64 {
+  const PATH: &'static str = package!(dev.toad.ffi.u64);
+}
+
 impl u64 {
-  pub const PATH: &'static str = package!(dev.toad.ffi.u64);
-  pub const CTOR: Sig = Sig::new().arg(Sig::class(java::math::BigInteger::PATH))
-                                  .returning(Sig::VOID);
-  pub const BIGINT_VALUE: Sig = Sig::new().returning(Sig::class(java::math::BigInteger::PATH));
-
-  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u64 {
-    let bi = e.call_method(self.0.as_obj(), "bigintValue", Self::BIGINT_VALUE, &[])
-              .unwrap()
-              .l()
-              .unwrap();
-    let bi = e.new_global_ref(bi).unwrap();
-    let bi = java::math::BigInteger::from_java(bi);
-    bi.to_i128(e) as rust::u64
+  pub fn to_rust(&self, e: &mut java::Env) -> rust::u64 {
+    static BIGINT_VALUE: java::Method<u64, fn() -> java::math::BigInteger> =
+      java::Method::new("bigintValue");
+    let bigint = BIGINT_VALUE.invoke(e, self);
+    bigint.to_i128(e) as rust::u64
   }
 
-  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u64) -> Self {
+  pub fn from_rust(e: &mut java::Env, u: rust::u64) -> Self {
+    static CTOR: java::Constructor<u64, fn(java::math::BigInteger)> = java::Constructor::new();
     let bi = java::math::BigInteger::from_be_bytes(e, &i128::from(u).to_be_bytes());
-    let bi = e.new_object(Self::PATH, Self::CTOR, &[bi.to_java().as_obj().into()])
-              .unwrap();
-    Self(e.new_global_ref(bi).unwrap())
-  }
-}
-
-impl Object for u64 {
-  fn from_java(jobj: GlobalRef) -> Self {
-    Self(jobj)
-  }
-
-  fn to_java(self) -> GlobalRef {
-    self.0
+    CTOR.invoke(e, bi)
   }
 }
 
 #[allow(non_camel_case_types)]
-pub struct u32(GlobalRef);
+pub struct u32(java::lang::Object);
+
+java::object_newtype!(u32);
+impl java::Class for u32 {
+  const PATH: &'static str = package!(dev.toad.ffi.u32);
+}
+
 impl u32 {
-  pub const PATH: &'static str = package!(dev.toad.ffi.u32);
-  pub const CTOR: Sig = Sig::new().arg(Sig::LONG).returning(Sig::VOID);
-  pub const LONG_VALUE: Sig = Sig::new().returning(Sig::LONG);
-
-  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u32 {
-    let long = e.call_method(self.0.as_obj(), "longValue", Self::LONG_VALUE, &[])
-                .unwrap()
-                .j()
-                .unwrap();
-    long as rust::u32
+  pub fn to_rust(&self, e: &mut java::Env) -> rust::u32 {
+    static LONG_VALUE: java::Method<u32, fn() -> i64> = java::Method::new("longValue");
+    LONG_VALUE.invoke(e, self) as rust::u32
   }
 
-  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u32) -> Self {
-    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i64::from(u).into()])
-              .unwrap();
-    Self(e.new_global_ref(bi).unwrap())
-  }
-}
-
-impl Object for u32 {
-  fn from_java(jobj: GlobalRef) -> Self {
-    Self(jobj)
-  }
-
-  fn to_java(self) -> GlobalRef {
-    self.0
+  pub fn from_rust(e: &mut java::Env, u: rust::u32) -> Self {
+    static CTOR: java::Constructor<u32, fn(i64)> = java::Constructor::new();
+    CTOR.invoke(e, u.into())
   }
 }
 
 #[allow(non_camel_case_types)]
-pub struct u16(GlobalRef);
+pub struct u16(java::lang::Object);
+
+java::object_newtype!(u16);
+impl java::Class for u16 {
+  const PATH: &'static str = package!(dev.toad.ffi.u16);
+}
+
 impl u16 {
-  pub const PATH: &'static str = package!(dev.toad.ffi.u16);
-  pub const CTOR: Sig = Sig::new().arg(Sig::INT).returning(Sig::VOID);
-  pub const INT_VALUE: Sig = Sig::new().returning(Sig::INT);
-
-  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u16 {
-    let int = e.call_method(self.0.as_obj(), "intValue", Self::INT_VALUE, &[])
-               .unwrap()
-               .i()
-               .unwrap();
-    int as rust::u16
+  pub fn to_rust(&self, e: &mut java::Env) -> rust::u16 {
+    static INT_VALUE: java::Method<u16, fn() -> i32> = java::Method::new("intValue");
+    INT_VALUE.invoke(e, self) as rust::u16
   }
 
-  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u16) -> Self {
-    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i32::from(u).into()])
-              .unwrap();
-    Self(e.new_global_ref(bi).unwrap())
-  }
-}
-
-impl Object for u16 {
-  fn from_java(jobj: GlobalRef) -> Self {
-    Self(jobj)
-  }
-
-  fn to_java(self) -> GlobalRef {
-    self.0
+  pub fn from_rust(e: &mut java::Env, u: rust::u16) -> Self {
+    static CTOR: java::Constructor<u16, fn(i32)> = java::Constructor::new();
+    CTOR.invoke(e, u.into())
   }
 }
 
 #[allow(non_camel_case_types)]
-pub struct u8(GlobalRef);
-impl u8 {
-  pub const PATH: &'static str = package!(dev.toad.ffi.u8);
-  pub const CTOR: Sig = Sig::new().arg(Sig::SHORT).returning(Sig::VOID);
-  pub const SHORT_VALUE: Sig = Sig::new().returning(Sig::SHORT);
+pub struct u8(java::lang::Object);
 
-  pub fn to_rust<'a>(&self, e: &mut JNIEnv<'a>) -> rust::u8 {
-    let int = e.call_method(self.0.as_obj(), "shortValue", Self::SHORT_VALUE, &[])
-               .unwrap()
-               .s()
-               .unwrap();
-    int as rust::u8
-  }
-
-  pub fn from_rust<'a>(e: &mut JNIEnv<'a>, u: rust::u8) -> Self {
-    let bi = e.new_object(Self::PATH, Self::CTOR, &[rust::i16::from(u).into()])
-              .unwrap();
-    Self(e.new_global_ref(bi).unwrap())
-  }
+java::object_newtype!(u8);
+impl java::Class for u8 {
+  const PATH: &'static str = package!(dev.toad.ffi.u8);
 }
 
-impl Object for u8 {
-  fn from_java(jobj: GlobalRef) -> Self {
-    Self(jobj)
+impl u8 {
+  pub fn to_rust(&self, e: &mut java::Env) -> rust::u8 {
+    static SHORT_VALUE: java::Method<u8, fn() -> i16> = java::Method::new("shortValue");
+    SHORT_VALUE.invoke(e, self) as rust::u8
   }
 
-  fn to_java(self) -> GlobalRef {
-    self.0
+  pub fn from_rust(e: &mut java::Env, u: rust::u8) -> Self {
+    static CTOR: java::Constructor<u8, fn(i16)> = java::Constructor::new();
+    CTOR.invoke(e, u.into())
   }
 }

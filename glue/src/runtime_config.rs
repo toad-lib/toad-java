@@ -1,39 +1,29 @@
-use jni::objects::{GlobalRef, JObject};
-use jni::sys::{jint, jshort};
-use jni::JNIEnv;
 use toad::config::{self, BytesPerSecond};
 use toad::retry::{Attempts, Strategy};
 use toad::time::Millis;
-use toad_jni::cls::java;
-use toad_jni::convert::{Object, Primitive};
-use toad_jni::Sig;
+use toad_jni::java;
 
 use crate::retry_strategy::RetryStrategy;
 
-pub struct RuntimeConfig<'a>(JObject<'a>);
+pub struct RuntimeConfig(java::lang::Object);
 
-impl<'a> RuntimeConfig<'a> {
-  pub const PATH: &'static str = package!(dev.toad.RuntimeOptions);
+java::object_newtype!(RuntimeConfig);
+impl java::Class for RuntimeConfig {
+  const PATH: &'static str = package!(dev.toad.RuntimeOptions);
+}
 
-  pub const CTOR: Sig = Sig::new().returning(Sig::VOID);
-
-  pub fn new(e: &mut JNIEnv<'a>) -> Self {
-    let o = e.new_object(Self::PATH, Self::CTOR, &[]).unwrap();
-    Self(o)
+impl RuntimeConfig {
+  pub fn new(e: &mut java::Env) -> Self {
+    static CTOR: java::Constructor<RuntimeConfig, fn()> = java::Constructor::new();
+    CTOR.invoke(e)
   }
 
-  pub fn net(&self, e: &mut JNIEnv<'a>) -> Net<'a> {
-    let o = e.call_method(&self.0,
-                          "net",
-                          Sig::new().returning(Sig::class(Net::PATH)),
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    Net(o)
+  pub fn net(&self, e: &mut java::Env) -> Net {
+    static NET: java::Method<RuntimeConfig, fn() -> Net> = java::Method::new("net");
+    NET.invoke(e, self)
   }
 
-  pub fn to_toad(&self, e: &mut JNIEnv<'a>) -> config::Config {
+  pub fn to_toad(&self, e: &mut java::Env) -> config::Config {
     let def = config::Config::default();
 
     let net = self.net(e);
@@ -78,182 +68,121 @@ impl<'a> RuntimeConfig<'a> {
   }
 }
 
-pub struct Net<'a>(JObject<'a>);
-impl<'a> Net<'a> {
-  pub const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Net");
+pub struct Net(java::lang::Object);
+java::object_newtype!(Net);
+impl java::Class for Net {
+  const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Net");
+}
 
-  pub fn port(&self, e: &mut JNIEnv<'a>) -> jshort {
-    e.call_method(&self.0, "port", Sig::new().returning(Sig::SHORT), &[])
-     .unwrap()
-     .s()
-     .unwrap()
+impl Net {
+  pub fn port(&self, e: &mut java::Env) -> i16 {
+    static PORT: java::Method<Net, fn() -> i16> = java::Method::new("port");
+    PORT.invoke(e, self)
   }
 
-  pub fn concurrency(&self, e: &mut JNIEnv<'a>) -> jshort {
-    e.call_method(&self.0,
-                  "concurrency",
-                  Sig::new().returning(Sig::SHORT),
-                  &[])
-     .unwrap()
-     .s()
-     .unwrap()
+  pub fn concurrency(&self, e: &mut java::Env) -> i16 {
+    static CONCURRENCY: java::Method<Net, fn() -> i16> = java::Method::new("concurrency");
+    CONCURRENCY.invoke(e, self)
   }
 
-  pub fn msg(&self, e: &mut JNIEnv<'a>) -> Msg<'a> {
-    let o = e.call_method(&self.0,
-                          "msg",
-                          Sig::new().returning(Sig::class(Msg::PATH)),
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    Msg(o)
+  pub fn msg(&self, e: &mut java::Env) -> Msg {
+    static MSG: java::Method<Net, fn() -> Msg> = java::Method::new("msg");
+    MSG.invoke(e, self)
   }
 }
 
-pub struct Msg<'a>(JObject<'a>);
-impl<'a> Msg<'a> {
-  pub const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg");
+pub struct Msg(java::lang::Object);
 
-  pub const TOKEN_SEED: Sig = Sig::new().returning(Sig::class(java::util::Optional::<jint>::PATH));
-  pub const PROBING_RATE: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<jint>::PATH));
-  pub const MULTICAST_RESP_LEISURE: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<GlobalRef>::PATH));
-  pub const CON: Sig = Sig::new().returning(Sig::class(Con::PATH));
-  pub const NON: Sig = Sig::new().returning(Sig::class(Non::PATH));
+java::object_newtype!(Msg);
 
-  pub fn token_seed(&self, e: &mut JNIEnv<'a>) -> Option<jint> {
-    let o = e.call_method(&self.0, "tokenSeed", Self::TOKEN_SEED, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<jint>::from_java(g).to_option(e)
+impl java::Class for Msg {
+  const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg");
+}
+
+impl Msg {
+  pub fn token_seed(&self, e: &mut java::Env) -> Option<i32> {
+    static TOKEN_SEED: java::Method<Msg, fn() -> java::util::Optional<i32>> =
+      java::Method::new("tokenSeed");
+    TOKEN_SEED.invoke(e, self).to_option(e)
   }
 
-  pub fn probing_rate(&self, e: &mut JNIEnv<'a>) -> Option<jint> {
-    let o = e.call_method(&self.0,
-                          "probingRateBytesPerSecond",
-                          Self::PROBING_RATE,
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<jint>::from_java(g).to_option(e)
+  pub fn probing_rate(&self, e: &mut java::Env) -> Option<i32> {
+    static PROBING_RATE: java::Method<Msg, fn() -> java::util::Optional<i32>> =
+      java::Method::new("probingRateBytesPerSecond");
+    PROBING_RATE.invoke(e, self).to_option(e)
   }
 
-  pub fn multicast_response_leisure(&self, e: &mut JNIEnv<'a>) -> Option<Millis> {
-    let o = e.call_method(&self.0,
-                          "multicastResponseLeisure",
-                          Self::MULTICAST_RESP_LEISURE,
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(java::time::Duration::from_java)
-                                                   .map(|d| Millis::new(d.to_millis(e) as u64))
+  pub fn multicast_response_leisure(&self, e: &mut java::Env) -> Option<Millis> {
+    static MULTICAST_RESP_LEISURE: java::Method<Msg,
+                                                  fn()
+                                                     -> java::util::Optional<java::time::Duration>> =
+      java::Method::new("multicastResponseLeisure");
+    MULTICAST_RESP_LEISURE.invoke(e, self)
+                          .to_option(e)
+                          .map(|d| Millis::new(d.to_millis(e) as u64))
   }
 
-  pub fn con(&self, e: &mut JNIEnv<'a>) -> Con<'a> {
-    let o = e.call_method(&self.0, "con", Self::CON, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    Con(o)
+  pub fn con(&self, e: &mut java::Env) -> Con {
+    static CON: java::Method<Msg, fn() -> Con> = java::Method::new("con");
+    CON.invoke(e, self)
   }
 
-  pub fn non(&self, e: &mut JNIEnv<'a>) -> Non<'a> {
-    let o = e.call_method(&self.0, "non", Self::NON, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    Non(o)
+  pub fn non(&self, e: &mut java::Env) -> Non {
+    static NON: java::Method<Msg, fn() -> Non> = java::Method::new("non");
+    NON.invoke(e, self)
   }
 }
 
-pub struct Con<'a>(JObject<'a>);
-impl<'a> Con<'a> {
-  pub const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg$Con");
+pub struct Con(java::lang::Object);
 
-  pub const ACKED_RETRY_STRATEGY: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<GlobalRef>::PATH));
-  pub const UNACKED_RETRY_STRATEGY: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<GlobalRef>::PATH));
-  pub const MAX_ATTEMPTS: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<jint>::PATH));
+java::object_newtype!(Con);
+impl java::Class for Con {
+  const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg$Con");
+}
 
-  pub fn acked_retry_strategy(&self, e: &mut JNIEnv<'a>) -> Option<Strategy> {
-    let o = e.call_method(&self.0,
-                          "ackedRetryStrategy",
-                          Self::ACKED_RETRY_STRATEGY,
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(RetryStrategy::from_java)
-                                                   .map(|j| j.to_toad(e))
+impl Con {
+  pub fn acked_retry_strategy(&self, e: &mut java::Env) -> Option<Strategy> {
+    static ACKED_RETRY_STRATEGY: java::Method<Con, fn() -> java::util::Optional<RetryStrategy>> =
+      java::Method::new("ackedRetryStrategy");
+    ACKED_RETRY_STRATEGY.invoke(e, self)
+                        .to_option(e)
+                        .map(|s| s.to_toad(e))
   }
 
-  pub fn unacked_retry_strategy(&self, e: &mut JNIEnv<'a>) -> Option<Strategy> {
-    let o = e.call_method(&self.0,
-                          "unackedRetryStrategy",
-                          Self::UNACKED_RETRY_STRATEGY,
-                          &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(RetryStrategy::from_java)
-                                                   .map(|j| j.to_toad(e))
+  pub fn unacked_retry_strategy(&self, e: &mut java::Env) -> Option<Strategy> {
+    static UNACKED_RETRY_STRATEGY: java::Method<Con, fn() -> java::util::Optional<RetryStrategy>> =
+      java::Method::new("unackedRetryStrategy");
+    UNACKED_RETRY_STRATEGY.invoke(e, self)
+                          .to_option(e)
+                          .map(|s| s.to_toad(e))
   }
 
-  pub fn max_attempts(&self, e: &mut JNIEnv<'a>) -> Option<jint> {
-    let o = e.call_method(&self.0, "maxAttempts", Self::MAX_ATTEMPTS, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(java::lang::Integer::from_java)
-                                                   .map(Primitive::dewrap)
+  pub fn max_attempts(&self, e: &mut java::Env) -> Option<i32> {
+    static MAX_ATTEMPTS: java::Method<Con, fn() -> java::util::Optional<i32>> =
+      java::Method::new("maxAttempts");
+    MAX_ATTEMPTS.invoke(e, self).to_option(e)
   }
 }
 
-pub struct Non<'a>(JObject<'a>);
-impl<'a> Non<'a> {
-  pub const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg$Non");
+pub struct Non(java::lang::Object);
 
-  pub const RETRY_STRATEGY: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<GlobalRef>::PATH));
-  pub const MAX_ATTEMPTS: Sig =
-    Sig::new().returning(Sig::class(java::util::Optional::<jint>::PATH));
+java::object_newtype!(Non);
+impl java::Class for Non {
+  const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Msg$Non");
+}
 
-  pub fn retry_strategy(&self, e: &mut JNIEnv<'a>) -> Option<Strategy> {
-    let o = e.call_method(&self.0, "retryStrategy", Self::RETRY_STRATEGY, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(RetryStrategy::from_java)
-                                                   .map(|j| j.to_toad(e))
+impl Non {
+  pub fn retry_strategy(&self, e: &mut java::Env) -> Option<Strategy> {
+    static RETRY_STRATEGY: java::Method<Non, fn() -> java::util::Optional<RetryStrategy>> =
+      java::Method::new("retryStrategy");
+    RETRY_STRATEGY.invoke(e, self)
+                  .to_option(e)
+                  .map(|s| s.to_toad(e))
   }
 
-  pub fn max_attempts(&self, e: &mut JNIEnv<'a>) -> Option<jint> {
-    let o = e.call_method(&self.0, "maxAttempts", Self::MAX_ATTEMPTS, &[])
-             .unwrap()
-             .l()
-             .unwrap();
-    let g = e.new_global_ref(o).unwrap();
-    java::util::Optional::<GlobalRef>::from_java(g).to_option(e)
-                                                   .map(java::lang::Integer::from_java)
-                                                   .map(Primitive::dewrap)
+  pub fn max_attempts(&self, e: &mut java::Env) -> Option<i32> {
+    static MAX_ATTEMPTS: java::Method<Non, fn() -> java::util::Optional<i32>> =
+      java::Method::new("maxAttempts");
+    MAX_ATTEMPTS.invoke(e, self).to_option(e)
   }
 }

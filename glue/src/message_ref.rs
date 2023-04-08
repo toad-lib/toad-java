@@ -1,32 +1,34 @@
-use jni::objects::{JClass, JObject};
+use jni::objects::JClass;
 use jni::sys::jobject;
-use jni::JNIEnv;
-use toad_jni::Sig;
+use toad_jni::java::{self, Object};
 use toad_msg::alloc::Message;
 
+use crate::mem::RuntimeAllocator;
 use crate::message_code::MessageCode;
 use crate::message_opt_ref::MessageOptRef;
 use crate::message_type::MessageType;
-use crate::{with_runtime_provenance, RUNTIME};
 
-pub struct MessageRef<'local>(pub JObject<'local>);
-impl<'local> MessageRef<'local> {
-  const ID: &'static str = package!(dev.toad.msg.MessageRef);
-  const CTOR: Sig = Sig::new().arg(Sig::LONG).returning(Sig::VOID);
+pub struct MessageRef(java::lang::Object);
 
-  pub fn new(env: &mut JNIEnv<'local>, addr: i64) -> Self {
-    let o = env.new_object(Self::ID, Self::CTOR, &[addr.into()])
-               .unwrap();
-    Self(o)
+java::object_newtype!(MessageRef);
+impl java::Class for MessageRef {
+  const PATH: &'static str = package!(dev.toad.msg.MessageRef);
+}
+
+impl MessageRef {
+  pub fn new(env: &mut java::Env, addr: *const Message) -> Self {
+    static CTOR: java::Constructor<MessageRef, fn(i64)> = java::Constructor::new();
+    CTOR.invoke(env, addr.addr() as i64)
   }
 
   pub unsafe fn ptr<'a>(addr: i64) -> &'a mut Message {
-    with_runtime_provenance::<Message>(addr).as_mut().unwrap()
+    crate::mem::Runtime::deref_inner::<Message>(/* TODO */ 0, addr).as_mut()
+                                                                   .unwrap()
   }
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_id<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_id<'local>(mut env: java::Env<'local>,
                                                                _: JClass<'local>,
                                                                addr: i64)
                                                                -> i32 {
@@ -35,7 +37,7 @@ pub extern "system" fn Java_dev_toad_msg_MessageRef_id<'local>(mut env: JNIEnv<'
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_token<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_token<'local>(mut env: java::Env<'local>,
                                                                   _: JClass<'local>,
                                                                   addr: i64)
                                                                   -> jobject {
@@ -44,7 +46,7 @@ pub extern "system" fn Java_dev_toad_msg_MessageRef_token<'local>(mut env: JNIEn
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_payload<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_payload<'local>(mut env: java::Env<'local>,
                                                                     _: JClass<'local>,
                                                                     addr: i64)
                                                                     -> jobject {
@@ -53,39 +55,34 @@ pub extern "system" fn Java_dev_toad_msg_MessageRef_payload<'local>(mut env: JNI
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_type<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_type<'local>(mut e: java::Env<'local>,
                                                                  _: JClass<'local>,
                                                                  addr: i64)
                                                                  -> jobject {
   let msg = unsafe { MessageRef::ptr(addr) };
-  MessageType::new(&mut env, msg.ty).0.into_raw()
+  MessageType::new(&mut e, msg.ty).downcast(&mut e).as_raw()
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_code<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_code<'local>(mut e: java::Env<'local>,
                                                                  _: JClass<'local>,
                                                                  addr: i64)
                                                                  -> jobject {
   let msg = unsafe { MessageRef::ptr(addr) };
-  MessageCode::new(&mut env, msg.code).0.into_raw()
+  MessageCode::new(&mut e, msg.code).downcast(&mut e).as_raw()
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageRef_opts<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageRef_opts<'local>(mut e: java::Env<'local>,
                                                                  _: JClass<'local>,
                                                                  addr: i64)
                                                                  -> jobject {
   let msg = unsafe { MessageRef::ptr(addr) };
   let opts = &msg.opts;
 
-  let opt_ref_class = MessageOptRef::class(&mut env);
-  let mut arr = env.new_object_array((*opts).len() as i32, opt_ref_class, JObject::null())
-                   .unwrap();
+  let refs = opts.into_iter()
+                 .map(|(n, v)| MessageOptRef::new(&mut e, v as *const _ as i64, n.0.into()))
+                 .collect::<Vec<_>>();
 
-  for (ix, (num, v)) in (*opts).iter().enumerate() {
-    let opt_ref = MessageOptRef::new(&mut env, v as *const _ as i64, num.0.into());
-    env.set_object_array_element(&mut arr, ix as i32, opt_ref.0);
-  }
-
-  arr.as_raw()
+  refs.downcast(&mut e).as_raw()
 }

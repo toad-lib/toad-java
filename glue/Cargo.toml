@@ -9,7 +9,8 @@ crate_type = ["cdylib"]
 
 [dependencies]
 jni = "0.21.1"
-toad = "0.17.2"
-toad-jni = "0.4.1"
+nb = "1"
+toad = "0.17.3"
+toad-jni = "0.5.1"
 toad-msg = "0.18.1"
 tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}

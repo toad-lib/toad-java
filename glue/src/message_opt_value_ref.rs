@@ -1,34 +1,31 @@
-use jni::objects::{JClass, JObject};
+use jni::objects::JClass;
 use jni::sys::jobject;
-use jni::JNIEnv;
-use toad_jni::Sig;
-use toad_msg::{OptNumber, OptValue};
+use toad_jni::java;
+use toad_msg::OptValue;
 
-use crate::with_runtime_provenance;
+use crate::mem::RuntimeAllocator;
 
-pub struct MessageOptValueRef<'local>(pub JObject<'local>);
-impl<'local> MessageOptValueRef<'local> {
-  const ID: &'static str = package!(dev.toad.msg.MessageOptionValueRef);
-  const CTOR: Sig = Sig::new().arg(Sig::LONG).returning(Sig::VOID);
+pub struct MessageOptValueRef(java::lang::Object);
 
-  pub fn class(env: &mut JNIEnv<'local>) -> JClass<'local> {
-    env.find_class(Self::ID).unwrap()
-  }
+java::object_newtype!(MessageOptValueRef);
+impl java::Class for MessageOptValueRef {
+  const PATH: &'static str = package!(dev.toad.msg.MessageOptionValueRef);
+}
 
-  pub fn new(env: &mut JNIEnv<'local>, addr: i64) -> Self {
-    let o = env.new_object(Self::ID, Self::CTOR, &[addr.into()])
-               .unwrap();
-    Self(o)
+impl MessageOptValueRef {
+  pub fn new(env: &mut java::Env, addr: i64) -> Self {
+    static CTOR: java::Constructor<MessageOptValueRef, fn(i64)> = java::Constructor::new();
+    CTOR.invoke(env, addr)
   }
 
   pub unsafe fn ptr<'a>(addr: i64) -> &'a mut OptValue<Vec<u8>> {
-    with_runtime_provenance::<OptValue<Vec<u8>>>(addr).as_mut()
-                                                      .unwrap()
+    crate::mem::Runtime::deref_inner::<OptValue<Vec<u8>>>(/* TODO */ 0, addr).as_mut()
+                                                                             .unwrap()
   }
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageOptionValueRef_bytes<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageOptionValueRef_bytes<'local>(mut env: java::Env<'local>,
                                                                              _: JClass<'local>,
                                                                              p: i64)
                                                                              -> jobject {

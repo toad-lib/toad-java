@@ -504,9 +504,9 @@ checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
 
 [[package]]
 name = "toad"
-version = "0.17.2"
+version = "0.17.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6e3e3216e542ea3b2da0d2200e498b016907b68acb288b47a487cb9fd681b42"
+checksum = "5d4000090e5f6d1380e1a4bfb9a5428019cb7a4374b3663792ef7965384968fc"
 dependencies = [
  "embedded-time",
  "log",
@@ -525,7 +525,7 @@ dependencies = [
  "toad-len",
  "toad-macros",
  "toad-map",
- "toad-msg 0.15.1",
+ "toad-msg",
  "toad-stem",
  "toad-writable",
 ]
@@ -570,17 +570,18 @@ name = "toad-java-glue"
 version = "0.1.0"
 dependencies = [
  "jni",
+ "nb",
  "tinyvec",
  "toad",
  "toad-jni",
- "toad-msg 0.18.1",
+ "toad-msg",
 ]
 
 [[package]]
 name = "toad-jni"
-version = "0.4.1"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff5fbc1fb554ad85160c74d6c6db551f164b79917c89509037477ad308d2b4ac"
+checksum = "9d47119dc7ecc1c65fa860a7b2c95dd45b177d07331ee8a18cac0cc41c9bd825"
 dependencies = [
  "jni",
  "toad-array 0.5.0",
@@ -616,21 +617,6 @@ checksum = "423d547a014a817ea38dc677ca5e8488edf6aeeda36d69bdfcce5adf7b2a0918"
 dependencies = [
  "tinyvec",
  "toad-len",
-]
-
-[[package]]
-name = "toad-msg"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "172e73f5ce192a45314eef776dd7e1e3cbde1c51ea021d79ac3630549925fbe5"
-dependencies = [
- "blake2",
- "tinyvec",
- "toad-array 0.2.3",
- "toad-cursor",
- "toad-len",
- "toad-macros",
- "toad-map",
 ]
 
 [[package]]

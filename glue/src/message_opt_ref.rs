@@ -1,41 +1,34 @@
 use jni::objects::{JClass, JObject};
 use jni::sys::jobject;
 use jni::JNIEnv;
-use toad_jni::Sig;
+use toad_jni::java::{self, Object};
 use toad_msg::{OptNumber, OptValue};
 
+use crate::mem::RuntimeAllocator;
 use crate::message_opt_value_ref::MessageOptValueRef;
-use crate::with_runtime_provenance;
 
-pub struct MessageOptRef<'local>(pub JObject<'local>);
-impl<'local> MessageOptRef<'local> {
-  const ID: &'static str = package!(dev.toad.msg.MessageOptionRef);
-  const CTOR: Sig = Sig::new().arg(Sig::LONG)
-                              .arg(Sig::LONG)
-                              .returning(Sig::VOID);
+pub struct MessageOptRef(pub java::lang::Object);
 
-  const NUMBER: &'static str = "number";
+java::object_newtype!(MessageOptRef);
 
-  pub fn class(env: &mut JNIEnv<'local>) -> JClass<'local> {
-    env.find_class(Self::ID).unwrap()
+impl java::Class for MessageOptRef {
+  const PATH: &'static str = package!(dev.toad.msg.MessageOptionRef);
+}
+
+impl MessageOptRef {
+  pub fn new(env: &mut java::Env, addr: i64, num: i64) -> Self {
+    static CTOR: java::Constructor<MessageOptRef, fn(i64, i64)> = java::Constructor::new();
+    CTOR.invoke(env, addr, num)
   }
 
-  pub fn new(env: &mut JNIEnv<'local>, addr: i64, num: i64) -> Self {
-    let o = env.new_object(Self::ID, Self::CTOR, &[addr.into(), num.into()])
-               .unwrap();
-    Self(o)
-  }
-
-  pub fn number(&self, env: &mut JNIEnv<'local>) -> OptNumber {
-    OptNumber(env.get_field(&self.0, Self::NUMBER, Sig::LONG)
-                 .unwrap()
-                 .j()
-                 .unwrap() as u32)
+  pub fn number(&self, env: &mut java::Env) -> OptNumber {
+    static NUMBER: java::Field<MessageOptRef, i64> = java::Field::new("number");
+    OptNumber(NUMBER.get(env, self) as u32)
   }
 
   pub unsafe fn values_ptr<'a>(addr: i64) -> &'a mut Vec<OptValue<Vec<u8>>> {
-    with_runtime_provenance::<Vec<OptValue<Vec<u8>>>>(addr).as_mut()
-                                                           .unwrap()
+    crate::mem::Runtime::deref_inner::<Vec<OptValue<Vec<u8>>>>(/* TODO */ 0, addr).as_mut()
+                                                                                  .unwrap()
   }
 }
 
@@ -44,24 +37,21 @@ pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_number<'local>(mut env
                                                                          o: JObject<'local>,
                                                                          p: i64)
                                                                          -> i64 {
-  MessageOptRef(o).number(&mut env).0 as i64
+  java::lang::Object::from_local(&mut env, o).upcast_to::<MessageOptRef>(&mut env)
+                                             .number(&mut env)
+                                             .0 as i64
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_values<'local>(mut env: JNIEnv<'local>,
+pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_values<'local>(mut e: JNIEnv<'local>,
                                                                          _: JClass<'local>,
                                                                          p: i64)
                                                                          -> jobject {
   let o = &unsafe { MessageOptRef::values_ptr(p) };
 
-  let value_ref_class = MessageOptValueRef::class(&mut env);
-  let mut arr = env.new_object_array(o.len() as i32, value_ref_class, JObject::null())
-                   .unwrap();
+  let refs = o.iter()
+              .map(|v| MessageOptValueRef::new(&mut e, (&v.0 as *const Vec<u8>).addr() as i64))
+              .collect::<Vec<_>>();
 
-  for (ix, v) in o.iter().enumerate() {
-    let value_ref = MessageOptValueRef::new(&mut env, v as *const _ as i64);
-    env.set_object_array_element(&mut arr, ix as i32, value_ref.0);
-  }
-
-  arr.as_raw()
+  refs.downcast(&mut e).as_raw()
 }

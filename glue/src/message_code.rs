@@ -1,19 +1,16 @@
-use jni::objects::{JClass, JObject};
-use jni::sys::jobject;
-use jni::JNIEnv;
-use toad_jni::Sig;
+use toad_jni::java;
 use toad_msg::Code;
 
-pub struct MessageCode<'local>(pub JObject<'local>);
-impl<'local> MessageCode<'local> {
-  const ID: &'static str = package!(dev.toad.msg.MessageCode);
-  const CTOR: Sig = Sig::new().arg(Sig::INT).arg(Sig::INT).returning(Sig::VOID);
+pub struct MessageCode(java::lang::Object);
 
-  pub fn new(env: &mut JNIEnv<'local>, code: Code) -> Self {
-    let o = env.new_object(Self::ID,
-                           Self::CTOR,
-                           &[i32::from(code.class).into(), i32::from(code.detail).into()])
-               .unwrap();
-    Self(o)
+java::object_newtype!(MessageCode);
+impl java::Class for MessageCode {
+  const PATH: &'static str = package!(dev.toad.msg.MessageCode);
+}
+
+impl MessageCode {
+  pub fn new(e: &mut java::Env, code: Code) -> Self {
+    static CTOR: java::Constructor<MessageCode, fn(i32, i32)> = java::Constructor::new();
+    CTOR.invoke(e, code.class.into(), code.detail.into())
   }
 }
