@@ -4,7 +4,6 @@ import dev.toad.msg.MessageRef;
 import java.util.Optional;
 
 public class Runtime {
-
   static {
     System.loadLibrary("toad_java_glue");
   }
@@ -12,6 +11,7 @@ public class Runtime {
   private final long addr;
 
   private static native long init(RuntimeOptions o);
+
   private native Optional<MessageRef> pollReq();
 
   public static Runtime getOrInit(RuntimeOptions o) {

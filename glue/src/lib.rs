@@ -34,7 +34,7 @@ pub extern "system" fn JNI_OnLoad(jvm: JavaVM, _: *const c_void) -> i32 {
 
 #[no_mangle]
 pub extern "system" fn JNI_OnUnload(_: JavaVM, _: *const c_void) {
-  unsafe {mem::Runtime::dealloc()}
+  unsafe { mem::Runtime::dealloc() }
 }
 
 #[cfg(all(test, feature = "e2e"))]
@@ -53,7 +53,7 @@ pub mod test {
   use crate::runtime_config::RuntimeConfig;
 
   pub fn init<'a>() -> java::Env<'a> {
-  static INIT: Once = Once::new();
+    static INIT: Once = Once::new();
     INIT.call_once(|| {
       let jvm =
         JavaVM::new(InitArgsBuilder::new().option("-Djava.library.path=/home/orion/src/toad-lib/toad-java/target/glue/debug/")

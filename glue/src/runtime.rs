@@ -12,12 +12,14 @@ pub struct Runtime(java::lang::Object);
 
 impl Runtime {
   pub fn get_or_init(e: &mut java::Env, cfg: RuntimeConfig) -> Self {
-    static GET_OR_INIT: java::StaticMethod<Runtime, fn(RuntimeConfig) -> Runtime> = java::StaticMethod::new("getOrInit");
+    static GET_OR_INIT: java::StaticMethod<Runtime, fn(RuntimeConfig) -> Runtime> =
+      java::StaticMethod::new("getOrInit");
     GET_OR_INIT.invoke(e, cfg)
   }
 
   pub fn poll_req(&self, e: &mut java::Env) -> Option<MessageRef> {
-    static POLL_REQ: java::Method<Runtime, fn() -> java::util::Optional<MessageRef>> = java::Method::new("pollReq");
+    static POLL_REQ: java::Method<Runtime, fn() -> java::util::Optional<MessageRef>> =
+      java::Method::new("pollReq");
     POLL_REQ.invoke(e, self).to_option(e)
   }
 
@@ -31,25 +33,24 @@ impl Runtime {
   }
 
   fn init_impl(e: &mut java::Env, cfg: RuntimeConfig) -> i64 {
-    let r = ||
-      ToadRuntime::try_new(format!("0.0.0.0:{}", cfg.net(e).port(e)), cfg.to_toad(e)).unwrap();
+    let r =
+      || ToadRuntime::try_new(format!("0.0.0.0:{}", cfg.net(e).port(e)), cfg.to_toad(e)).unwrap();
     unsafe { crate::mem::Runtime::alloc(r).addr() as i64 }
   }
 
   fn poll_req_impl(&self, e: &mut java::Env) -> java::util::Optional<MessageRef> {
-  match self.ref_(e).poll_req() {
-    | Ok(req) => {
-      let mr = MessageRef::new(e, req.data().msg());
-      java::util::Optional::<MessageRef>::of(e, mr)
-    },
-    | Err(nb::Error::WouldBlock) => {
-      java::util::Optional::<MessageRef>::empty(e)
-    },
-    | Err(nb::Error::Other(err)) => {
-      e.throw(format!("{:?}", err)).unwrap();
-      java::util::Optional::<MessageRef>::empty(e)
-    },
-  }  }
+    match self.ref_(e).poll_req() {
+      | Ok(req) => {
+        let mr = MessageRef::new(e, req.data().msg());
+        java::util::Optional::<MessageRef>::of(e, mr)
+      },
+      | Err(nb::Error::WouldBlock) => java::util::Optional::<MessageRef>::empty(e),
+      | Err(nb::Error::Other(err)) => {
+        e.throw(format!("{:?}", err)).unwrap();
+        java::util::Optional::<MessageRef>::empty(e)
+      },
+    }
+  }
 }
 
 java::object_newtype!(Runtime);
@@ -74,10 +75,9 @@ pub extern "system" fn Java_dev_toad_Runtime_pollReq<'local>(mut e: java::Env<'l
                                                              runtime: JObject<'local>)
                                                              -> jobject {
   let e = &mut e;
-  java::lang::Object::from_local(e, runtime)
-      .upcast_to::<Runtime>(e)
-      .poll_req_impl(e)
-      .downcast(e)
-      .to_local(e)
-      .as_raw()
+  java::lang::Object::from_local(e, runtime).upcast_to::<Runtime>(e)
+                                            .poll_req_impl(e)
+                                            .downcast(e)
+                                            .to_local(e)
+                                            .as_raw()
 }
