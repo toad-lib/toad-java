@@ -9,7 +9,10 @@ pub type Runtime = RuntimeGlobalStaticAllocator;
 /// strict provenance to prevent addresses from leaking outside of that memory region.
 pub trait RuntimeAllocator: core::default::Default + core::fmt::Debug + Copy {
   /// Allocate memory for the runtime and yield a stable pointer to it
-  unsafe fn alloc(r: crate::Runtime) -> *mut crate::Runtime;
+  unsafe fn alloc(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime;
+
+  /// Teardown
+  unsafe fn dealloc() {}
 
   /// Coerce a `long` rep of the stable pointer created by [`Self::alloc`] to
   /// a pointer (preferably using strict_provenance)
@@ -32,16 +35,17 @@ static mut RUNTIME: *mut crate::Runtime = core::ptr::null_mut();
 pub struct RuntimeGlobalStaticAllocator;
 impl RuntimeAllocator for RuntimeGlobalStaticAllocator {
   /// Nops on already-init
-  unsafe fn alloc(r: crate::Runtime) -> *mut crate::Runtime {
+  unsafe fn alloc(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
     if RUNTIME.is_null() {
-      let p =
-        std::alloc::alloc(std::alloc::Layout::new::<crate::Runtime>()).cast::<crate::Runtime>();
-      *p = r;
-      RUNTIME = p;
+      RUNTIME = Box::into_raw(Box::new(r()));
       RUNTIME
     } else {
       RUNTIME
     }
+  }
+
+  unsafe fn dealloc() {
+    drop(Box::from_raw(RUNTIME));
   }
 
   unsafe fn deref(_: i64) -> *mut crate::Runtime {

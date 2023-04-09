@@ -1,5 +1,10 @@
 #![feature(strict_provenance)]
 
+use std::ffi::c_void;
+
+use jni::JavaVM;
+use mem::RuntimeAllocator;
+
 pub type Runtime =
   toad::std::Platform<toad::std::dtls::N, toad::step::runtime::std::Runtime<toad::std::dtls::N>>;
 
@@ -21,8 +26,22 @@ pub mod runtime;
 pub mod runtime_config;
 pub mod uint;
 
+#[no_mangle]
+pub extern "system" fn JNI_OnLoad(jvm: JavaVM, _: *const c_void) -> i32 {
+  toad_jni::global::init_with(jvm);
+  jni::sys::JNI_VERSION_1_8
+}
+
+#[no_mangle]
+pub extern "system" fn JNI_OnUnload(_: JavaVM, _: *const c_void) {
+  unsafe {mem::Runtime::dealloc()}
+}
+
+#[cfg(all(test, feature = "e2e"))]
+pub mod e2e;
+
 #[cfg(test)]
-mod tests {
+pub mod test {
   use std::sync::Once;
 
   use jni::{InitArgsBuilder, JavaVM};
@@ -33,20 +52,20 @@ mod tests {
   use crate::retry_strategy::RetryStrategy;
   use crate::runtime_config::RuntimeConfig;
 
-  static INIT: Once = Once::new();
   pub fn init<'a>() -> java::Env<'a> {
+  static INIT: Once = Once::new();
     INIT.call_once(|| {
       let jvm =
-        JavaVM::new(InitArgsBuilder::new().option("--enable-preview")
-                                          .option("-Djava.class.path=../target/scala-3.2.2/classes/")
+        JavaVM::new(InitArgsBuilder::new().option("-Djava.library.path=/home/orion/src/toad-lib/toad-java/target/glue/debug/")
+                                          .option("-Djava.class.path=../target/scala-3.2.2/classes")
+                                          .option("--enable-preview")
                                           .build()
                                           .unwrap()).unwrap();
       toad_jni::global::init_with(jvm);
     });
 
     toad_jni::global::jvm().attach_current_thread_permanently()
-                           .unwrap();
-    toad_jni::global::jvm().get_env().unwrap()
+                           .unwrap()
   }
 
   #[test]

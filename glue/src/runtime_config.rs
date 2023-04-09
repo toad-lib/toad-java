@@ -4,6 +4,7 @@ use toad::time::Millis;
 use toad_jni::java;
 
 use crate::retry_strategy::RetryStrategy;
+use crate::uint;
 
 pub struct RuntimeConfig(java::lang::Object);
 
@@ -74,15 +75,21 @@ impl java::Class for Net {
   const PATH: &'static str = concat!(package!(dev.toad.RuntimeOptions), "$Net");
 }
 
+static NET_PORT: java::Field<Net, uint::u16> = java::Field::new("port");
+
 impl Net {
-  pub fn port(&self, e: &mut java::Env) -> i16 {
-    static PORT: java::Method<Net, fn() -> i16> = java::Method::new("port");
-    PORT.invoke(e, self)
+  pub fn port(&self, e: &mut java::Env) -> u16 {
+    NET_PORT.get(e, self).to_rust(e)
   }
 
-  pub fn concurrency(&self, e: &mut java::Env) -> i16 {
-    static CONCURRENCY: java::Method<Net, fn() -> i16> = java::Method::new("concurrency");
-    CONCURRENCY.invoke(e, self)
+  pub fn set_port(&self, e: &mut java::Env, new: u16) {
+    let new = uint::u16::from_rust(e, new);
+    NET_PORT.set(e, self, new)
+  }
+
+  pub fn concurrency(&self, e: &mut java::Env) -> u8 {
+    static CONCURRENCY: java::Field<Net, uint::u8> = java::Field::new("concurrency");
+    CONCURRENCY.get(e, self).to_rust(e)
   }
 
   pub fn msg(&self, e: &mut java::Env) -> Msg {

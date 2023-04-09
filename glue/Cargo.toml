@@ -7,10 +7,15 @@ publish = false
 [lib]
 crate_type = ["cdylib"]
 
+[features]
+default = ["e2e"]
+e2e = []
+
 [dependencies]
 jni = "0.21.1"
 nb = "1"
 toad = "0.17.3"
-toad-jni = "0.5.1"
+toad-jni = {path = "../../toad/toad-jni"} # "0.6.0"
+no-std-net = "0.6"
 toad-msg = "0.18.1"
 tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}
