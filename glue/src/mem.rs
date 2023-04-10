@@ -1,54 +1,88 @@
-/// global [`RuntimeAllocator`] implementation
-pub type Runtime = RuntimeGlobalStaticAllocator;
+use std::sync::Mutex;
 
-/// Trait managing the memory region(s) associated with the toad runtime
-/// data structure.
-///
-/// Notably, any and all references produced by the runtime will be to data
-/// within the Runtime's memory region, meaning that we can easily leverage
-/// strict provenance to prevent addresses from leaking outside of that memory region.
-pub trait RuntimeAllocator: core::default::Default + core::fmt::Debug + Copy {
+use toad_msg::alloc::Message;
+
+/// global [`RuntimeAllocator`] implementation
+pub type Shared = GlobalStatic;
+
+/// Trait managing the memory region(s) which java will store pointers to
+pub trait SharedMemoryRegion: core::default::Default + core::fmt::Debug + Copy {
   /// Allocate memory for the runtime and yield a stable pointer to it
-  unsafe fn alloc(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime;
+  ///
+  /// This is idempotent and will only invoke the provided callback if the runtime
+  /// has not already been initialized.
+  unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime;
+
+  /// Pass ownership of a [`Message`] to the shared memory region,
+  /// yielding a stable pointer to this message.
+  unsafe fn alloc_message(m: Message) -> *mut Message;
+
+  /// Delete a message from the shared memory region.
+  unsafe fn dealloc_message(m: *mut Message);
 
   /// Teardown
-  unsafe fn dealloc() {}
+  unsafe fn dealloc();
 
-  /// Coerce a `long` rep of the stable pointer created by [`Self::alloc`] to
-  /// a pointer (preferably using strict_provenance)
-  unsafe fn deref(addr: i64) -> *mut crate::Runtime;
+  unsafe fn shared_region(addr: i64) -> *mut u8;
 
   /// Coerce a `long` rep of a pointer to some data within the
-  /// Runtime data structure.
-  ///
-  /// Requires the Runtime address in order for the new pointer
-  /// to inherit its provenance.
-  unsafe fn deref_inner<T>(runtime_addr: i64, addr: i64) -> *mut T {
-    Self::deref(runtime_addr).with_addr(addr as usize)
-                             .cast::<T>()
+  /// shared memory region.
+  unsafe fn deref<T>(shared_region_addr: i64, addr: i64) -> *mut T {
+    Self::shared_region(shared_region_addr).with_addr(addr as usize)
+                                           .cast::<T>()
   }
 }
 
-static mut RUNTIME: *mut crate::Runtime = core::ptr::null_mut();
+static mut MEM: *mut Mem = core::ptr::null_mut();
+
+struct Mem {
+  runtime: crate::Runtime,
+  messages: Vec<Message>,
+
+  /// Lock used by `alloc_message` and `dealloc_message` to ensure
+  /// they are run serially.
+  ///
+  /// This doesn't provide any guarantees that message pointers will
+  /// stay valid or always point to the correct location, but it does
+  /// ensure we don't accidentally yield the wrong pointer from `alloc_message`
+  /// or delete the wrong message in `dealloc_message`.
+  messages_lock: Mutex<()>,
+}
 
 #[derive(Default, Debug, Clone, Copy)]
-pub struct RuntimeGlobalStaticAllocator;
-impl RuntimeAllocator for RuntimeGlobalStaticAllocator {
-  /// Nops on already-init
-  unsafe fn alloc(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
-    if RUNTIME.is_null() {
-      RUNTIME = Box::into_raw(Box::new(r()));
-      RUNTIME
-    } else {
-      RUNTIME
-    }
-  }
-
+pub struct GlobalStatic;
+impl SharedMemoryRegion for GlobalStatic {
   unsafe fn dealloc() {
-    drop(Box::from_raw(RUNTIME));
+    drop(Box::from_raw(MEM));
   }
 
-  unsafe fn deref(_: i64) -> *mut crate::Runtime {
-    RUNTIME
+  unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
+    if MEM.is_null() {
+      MEM = Box::into_raw(Box::new(Mem { runtime: r(),
+                                         messages: vec![],
+                                         messages_lock: Mutex::new(()) }));
+    }
+
+    &mut (*MEM).runtime as _
+  }
+
+  unsafe fn alloc_message(m: Message) -> *mut Message {
+    let _lock = (*MEM).messages_lock.lock();
+    (*MEM).messages.push(m);
+    &mut (*MEM).messages[(*MEM).messages.len() - 1] as _
+  }
+
+  unsafe fn dealloc_message(m: *mut Message) {
+    let _lock = (*MEM).messages_lock.lock();
+    let ix = m.offset_from((*MEM).messages.as_slice().as_ptr());
+    if ix.is_negative() {
+      panic!()
+    }
+
+    (*MEM).messages.remove(ix as usize);
+  }
+
+  unsafe fn shared_region(_: i64) -> *mut u8 {
+    MEM as _
   }
 }

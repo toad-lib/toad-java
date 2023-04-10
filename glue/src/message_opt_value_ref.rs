@@ -3,7 +3,7 @@ use jni::sys::jobject;
 use toad_jni::java;
 use toad_msg::OptValue;
 
-use crate::mem::RuntimeAllocator;
+use crate::mem::SharedMemoryRegion;
 
 pub struct MessageOptValueRef(java::lang::Object);
 
@@ -19,8 +19,8 @@ impl MessageOptValueRef {
   }
 
   pub unsafe fn ptr<'a>(addr: i64) -> &'a mut OptValue<Vec<u8>> {
-    crate::mem::Runtime::deref_inner::<OptValue<Vec<u8>>>(/* TODO */ 0, addr).as_mut()
-                                                                             .unwrap()
+    crate::mem::Shared::deref::<OptValue<Vec<u8>>>(/* TODO */ 0, addr).as_mut()
+                                                                      .unwrap()
   }
 }
 

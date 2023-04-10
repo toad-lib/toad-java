@@ -3,7 +3,7 @@
 use std::ffi::c_void;
 
 use jni::JavaVM;
-use mem::RuntimeAllocator;
+use mem::SharedMemoryRegion;
 
 pub type Runtime =
   toad::std::Platform<toad::std::dtls::N, toad::step::runtime::std::Runtime<toad::std::dtls::N>>;
@@ -34,7 +34,7 @@ pub extern "system" fn JNI_OnLoad(jvm: JavaVM, _: *const c_void) -> i32 {
 
 #[no_mangle]
 pub extern "system" fn JNI_OnUnload(_: JavaVM, _: *const c_void) {
-  unsafe { mem::Runtime::dealloc() }
+  unsafe { mem::Shared::dealloc() }
 }
 
 #[cfg(all(test, feature = "e2e"))]

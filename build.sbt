@@ -14,7 +14,13 @@ val path = settingKey[Map[String, String]]("paths")
 fork := true
 
 javaOptions += "--enable-preview"
-javacOptions ++= Seq("--enable-preview", "--release", "20")
+javacOptions ++= Seq(
+  "--enable-preview",
+  "--release",
+  "20",
+  "-Xlint:unchecked",
+  "-Xlint:deprecation"
+)
 
 lazy val root = project
   .in(file("."))

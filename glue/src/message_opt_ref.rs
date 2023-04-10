@@ -4,7 +4,7 @@ use jni::JNIEnv;
 use toad_jni::java::{self, Object};
 use toad_msg::{OptNumber, OptValue};
 
-use crate::mem::RuntimeAllocator;
+use crate::mem::SharedMemoryRegion;
 use crate::message_opt_value_ref::MessageOptValueRef;
 
 pub struct MessageOptRef(pub java::lang::Object);
@@ -27,8 +27,8 @@ impl MessageOptRef {
   }
 
   pub unsafe fn values_ptr<'a>(addr: i64) -> &'a mut Vec<OptValue<Vec<u8>>> {
-    crate::mem::Runtime::deref_inner::<Vec<OptValue<Vec<u8>>>>(/* TODO */ 0, addr).as_mut()
-                                                                                  .unwrap()
+    crate::mem::Shared::deref::<Vec<OptValue<Vec<u8>>>>(/* TODO */ 0, addr).as_mut()
+                                                                           .unwrap()
   }
 }
 
@@ -53,5 +53,5 @@ pub extern "system" fn Java_dev_toad_msg_MessageOptionRef_values<'local>(mut e: 
               .map(|v| MessageOptValueRef::new(&mut e, (&v.0 as *const Vec<u8>).addr() as i64))
               .collect::<Vec<_>>();
 
-  refs.downcast(&mut e).as_raw()
+  refs.yield_to_java(&mut e)
 }

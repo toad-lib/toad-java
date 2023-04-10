@@ -3,7 +3,7 @@ use jni::sys::jobject;
 use toad::platform::Platform;
 use toad_jni::java::{self, Object};
 
-use crate::mem::RuntimeAllocator;
+use crate::mem::SharedMemoryRegion;
 use crate::message_ref::MessageRef;
 use crate::runtime_config::RuntimeConfig;
 use crate::Runtime as ToadRuntime;
@@ -29,19 +29,22 @@ impl Runtime {
   }
 
   pub fn ref_(&self, e: &mut java::Env) -> &'static ToadRuntime {
-    unsafe { crate::mem::Runtime::deref(self.addr(e)).as_ref().unwrap() }
+    unsafe {
+      crate::mem::Shared::deref::<ToadRuntime>(0, self.addr(e)).as_ref()
+                                                               .unwrap()
+    }
   }
 
   fn init_impl(e: &mut java::Env, cfg: RuntimeConfig) -> i64 {
     let r =
       || ToadRuntime::try_new(format!("0.0.0.0:{}", cfg.net(e).port(e)), cfg.to_toad(e)).unwrap();
-    unsafe { crate::mem::Runtime::alloc(r).addr() as i64 }
+    unsafe { crate::mem::Shared::init(r).addr() as i64 }
   }
 
   fn poll_req_impl(&self, e: &mut java::Env) -> java::util::Optional<MessageRef> {
     match self.ref_(e).poll_req() {
       | Ok(req) => {
-        let mr = MessageRef::new(e, req.data().msg());
+        let mr = MessageRef::new(e, req.unwrap().into());
         java::util::Optional::<MessageRef>::of(e, mr)
       },
       | Err(nb::Error::WouldBlock) => java::util::Optional::<MessageRef>::empty(e),
@@ -77,7 +80,5 @@ pub extern "system" fn Java_dev_toad_Runtime_pollReq<'local>(mut e: java::Env<'l
   let e = &mut e;
   java::lang::Object::from_local(e, runtime).upcast_to::<Runtime>(e)
                                             .poll_req_impl(e)
-                                            .downcast(e)
-                                            .to_local(e)
-                                            .as_raw()
+                                            .yield_to_java(e)
 }
