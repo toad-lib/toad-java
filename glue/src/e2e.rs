@@ -69,8 +69,7 @@ fn message_ref_should_throw_when_used_after_close(State {runtime, env, client, s
 
   let err = env.exception_occurred().unwrap();
   env.exception_clear().unwrap();
-  assert!(env.is_instance_of(err,
-                             concat!(package!(dev.toad.RefHawk), "$IllegalStorageOfRefError"))
+  assert!(env.is_instance_of(err, concat!(package!(dev.toad.ffi.Ptr), "$ExpiredError"))
              .unwrap());
 }
 

@@ -1,7 +1,6 @@
 package dev.toad.msg;
 
-import dev.toad.RefHawk;
-import dev.toad.RefHawk.Ptr;
+import dev.toad.ffi.Ptr;
 
 public class MessageOptionValueRef
   implements MessageOptionValue, AutoCloseable {
@@ -11,7 +10,7 @@ public class MessageOptionValueRef
   private native byte[] bytes(long addr);
 
   public MessageOptionValueRef(long addr) {
-    this.ptr = RefHawk.register(this.getClass(), addr);
+    this.ptr = Ptr.register(this.getClass(), addr);
   }
 
   public byte[] asBytes() {
@@ -28,6 +27,6 @@ public class MessageOptionValueRef
 
   @Override
   public void close() {
-    RefHawk.release(this.ptr);
+    this.ptr.release();
   }
 }

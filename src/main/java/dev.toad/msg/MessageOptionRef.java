@@ -1,7 +1,6 @@
 package dev.toad.msg;
 
-import dev.toad.RefHawk;
-import dev.toad.RefHawk.Ptr;
+import dev.toad.ffi.Ptr;
 import java.util.Arrays;
 import java.util.List;
 
@@ -13,7 +12,7 @@ public class MessageOptionRef implements MessageOption, AutoCloseable {
   private native MessageOptionValueRef[] values(long ptr);
 
   public MessageOptionRef(long addr, long number) {
-    this.ptr = RefHawk.register(this.getClass(), addr);
+    this.ptr = Ptr.register(this.getClass(), addr);
     this.number = number;
   }
 
@@ -35,6 +34,6 @@ public class MessageOptionRef implements MessageOption, AutoCloseable {
 
   @Override
   public void close() {
-    RefHawk.release(this.ptr);
+    this.ptr.release();
   }
 }
