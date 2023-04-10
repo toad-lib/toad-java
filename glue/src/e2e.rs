@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use jni::objects::GlobalRef;
 use no_std_net::SocketAddr;
+use toad::config::Config;
 use toad::net::Addrd;
 use toad::platform::Platform;
 use toad_jni::java::lang::System;
@@ -28,7 +29,7 @@ fn init() -> State {
   let mut _env = crate::test::init();
   let env = &mut _env;
 
-  let cfg = RuntimeConfig::new(env);
+  let cfg = RuntimeConfig::new(env, Config::default(), 5683);
   let runtime = Runtime::get_or_init(env, cfg);
   let client = crate::Runtime::try_new("0.0.0.0:5684", Default::default()).unwrap();
 

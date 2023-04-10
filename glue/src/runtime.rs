@@ -36,8 +36,7 @@ impl Runtime {
   }
 
   fn init_impl(e: &mut java::Env, cfg: RuntimeConfig) -> i64 {
-    let r =
-      || ToadRuntime::try_new(format!("0.0.0.0:{}", cfg.net(e).port(e)), cfg.to_toad(e)).unwrap();
+    let r = || ToadRuntime::try_new(format!("0.0.0.0:{}", cfg.port(e)), cfg.to_toad(e)).unwrap();
     unsafe { crate::mem::Shared::init(r).addr() as i64 }
   }
 

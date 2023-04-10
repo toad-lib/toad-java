@@ -45,6 +45,7 @@ pub mod test {
   use std::sync::Once;
 
   use jni::{InitArgsBuilder, JavaVM};
+  use toad::config::Config;
   use toad::retry::Strategy;
   use toad::time::Millis;
   use toad_jni::java;
@@ -80,8 +81,8 @@ pub mod test {
     let mut e = init();
     let e = &mut e;
 
-    let r = RuntimeConfig::new(e);
-    assert_eq!(r.to_toad(e), Default::default());
+    let r = RuntimeConfig::new(e, Config::default(), 5683);
+    assert_eq!(r.to_toad(e), Config::default());
   }
 
   #[test]

@@ -53,7 +53,9 @@ struct Mem {
 pub struct GlobalStatic;
 impl SharedMemoryRegion for GlobalStatic {
   unsafe fn dealloc() {
-    drop(Box::from_raw(MEM));
+    if !MEM.is_null() {
+      drop(Box::from_raw(MEM));
+    }
   }
 
   unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
