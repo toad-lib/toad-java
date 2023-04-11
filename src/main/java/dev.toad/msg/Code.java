@@ -1,11 +1,11 @@
 package dev.toad.msg;
 
-public class MessageCode {
+public class Code {
 
   private final int clazz;
   private final int detail;
 
-  public MessageCode(int clazz, int detail) {
+  public Code(int clazz, int detail) {
     this.clazz = clazz;
     this.detail = detail;
   }

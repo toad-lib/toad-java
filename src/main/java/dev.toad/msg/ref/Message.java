@@ -1,6 +1,7 @@
-package dev.toad.msg;
+package dev.toad.msg.ref;
 
 import dev.toad.ffi.Ptr;
+import dev.toad.msg.*;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -13,32 +14,32 @@ import java.util.Optional;
  * control is yielded back to the rust runtime, meaning instances of
  * MessageRef should never be stored in state; invoke `.clone()` first.
  */
-public class MessageRef implements Message, AutoCloseable {
+public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
-  private Ptr ptr;
+  Ptr ptr;
 
-  private Optional<InetSocketAddress> source = Optional.empty();
+  Optional<InetSocketAddress> source = Optional.empty();
 
-  private static native InetSocketAddress source(long addr);
+  static native InetSocketAddress source(long addr);
 
-  private static native int id(long addr);
+  static native Id id(long addr);
 
-  private static native byte[] token(long addr);
+  static native Token token(long addr);
 
-  private static native byte[] payload(long addr);
+  static native byte[] payload(long addr);
 
-  private static native MessageCode code(long addr);
+  static native Code code(long addr);
 
-  private static native MessageType type(long addr);
+  static native Type type(long addr);
 
-  private static native MessageOptionRef[] opts(long addr);
+  static native dev.toad.msg.ref.Option[] opts(long addr);
 
-  public MessageRef(long addr) {
+  Message(long addr) {
     this.ptr = Ptr.register(this.getClass(), addr);
   }
 
-  public Message clone() {
-    return new MessageOwned(this);
+  public dev.toad.msg.Message clone() {
+    return new dev.toad.msg.owned.Message(this);
   }
 
   public InetSocketAddress source() {
@@ -49,27 +50,27 @@ public class MessageRef implements Message, AutoCloseable {
     return this.source.get();
   }
 
-  public int id() {
+  public Id id() {
     return this.id(this.ptr.addr());
   }
 
-  public byte[] token() {
+  public Token token() {
     return this.token(this.ptr.addr());
   }
 
-  public MessageCode code() {
+  public Code code() {
     return this.code(this.ptr.addr());
   }
 
-  public MessageType type() {
+  public Type type() {
     return this.type(this.ptr.addr());
   }
 
-  public MessageOptionRef[] optionRefs() {
+  public dev.toad.msg.ref.Option[] optionRefs() {
     return this.opts(this.ptr.addr());
   }
 
-  public List<MessageOption> options() {
+  public List<dev.toad.msg.Option> options() {
     return Arrays.asList(this.opts(this.ptr.addr()));
   }
 

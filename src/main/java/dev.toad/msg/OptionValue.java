@@ -1,6 +1,6 @@
 package dev.toad.msg;
 
-public interface MessageOptionValue {
+public interface OptionValue {
   public byte[] asBytes();
 
   public String asString();

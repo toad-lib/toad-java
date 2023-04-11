@@ -29,7 +29,7 @@ lazy val root = project
     Compile / doc / javacOptions ++= Seq(
       "--enable-preview",
       "--release",
-      "20",
+      "20"
     ),
     Compile / compile / javacOptions ++= Seq(
       "--enable-preview",

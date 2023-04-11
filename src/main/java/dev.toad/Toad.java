@@ -1,46 +1,58 @@
 package dev.toad;
 
 import dev.toad.ffi.*;
-import dev.toad.msg.MessageRef;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Function;
 
-public class ToadRuntime {
+public final class Toad {
 
   static native Config defaultConfigImpl();
 
   static Config defaultConfig = null;
 
   static Config defaultConfig() {
-    if (ToadRuntime.defaultConfig == null) {
-      ToadRuntime.defaultConfig = ToadRuntime.defaultConfigImpl();
+    if (Toad.defaultConfig == null) {
+      Toad.defaultConfig = Toad.defaultConfigImpl();
     }
 
-    return ToadRuntime.defaultConfig;
+    return Toad.defaultConfig;
   }
 
   static {
     System.loadLibrary("toad_java_glue");
   }
 
-  private final Ptr ptr;
-  private final Config config;
+  final Ptr ptr;
+  final Config config;
 
-  private static native long init(Config o);
+  static native long init(Config o);
 
-  private static native Optional<MessageRef> pollReq(long addr);
+  static native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
 
-  Optional<MessageRef> pollReq() {
-    return ToadRuntime.pollReq(this.ptr.addr());
+  static native Optional<dev.toad.msg.ref.Message> pollResp(
+    long ptr,
+    dev.toad.msg.Token t,
+    InetSocketAddress n
+  );
+
+  Optional<dev.toad.msg.ref.Message> pollReq() {
+    return Toad.pollReq(this.ptr.addr());
+  }
+
+  Optional<dev.toad.msg.ref.Message> pollResp(
+    dev.toad.msg.Token regarding,
+    InetSocketAddress from
+  ) {
+    return Toad.pollResp(this.ptr.addr(), regarding, from);
   }
 
   public static BuilderRequiresBindToAddress builder() {
     return new Builder();
   }
 
-  ToadRuntime(Config o) {
+  Toad(Config o) {
     this.config = o;
     this.ptr = Ptr.register(this.getClass(), this.init(o));
   }
@@ -50,21 +62,21 @@ public class ToadRuntime {
   }
 
   public interface BuilderRequiresBindToAddress {
-    ToadRuntime.Builder port(short port);
-    ToadRuntime.Builder address(InetSocketAddress addr);
+    Toad.Builder port(short port);
+    Toad.Builder address(InetSocketAddress addr);
   }
 
   public static final class Builder implements BuilderRequiresBindToAddress {
 
     Config.Msg.Builder msg = Config.Msg.builder();
     Optional<InetSocketAddress> addr = Optional.empty();
-    u8 concurrency = ToadRuntime.defaultConfig().concurrency;
+    u8 concurrency = Toad.defaultConfig().concurrency;
 
     Builder() {}
 
-    public ToadRuntime build() {
+    public Toad build() {
       var cfg = new Config(this.addr.get(), this.concurrency, this.msg.build());
-      return new ToadRuntime(cfg);
+      return new Toad(cfg);
     }
 
     public Builder msg(Function<Config.Msg.Builder, Config.Msg.Builder> f) {
@@ -183,10 +195,10 @@ public class ToadRuntime {
 
         Con.Builder con = Con.builder();
         Non.Builder non = Non.builder();
-        u16 tokenSeed = ToadRuntime.defaultConfig().msg.tokenSeed;
-        u16 probingRateBytesPerSecond = ToadRuntime.defaultConfig()
+        u16 tokenSeed = Toad.defaultConfig().msg.tokenSeed;
+        u16 probingRateBytesPerSecond = Toad.defaultConfig()
           .msg.probingRateBytesPerSecond;
-        Duration multicastResponseLeisure = ToadRuntime.defaultConfig()
+        Duration multicastResponseLeisure = Toad.defaultConfig()
           .msg.multicastResponseLeisure;
 
         public Msg build() {
@@ -275,11 +287,11 @@ public class ToadRuntime {
 
         public static final class Builder {
 
-          RetryStrategy ackedRetryStrategy = ToadRuntime.defaultConfig()
+          RetryStrategy ackedRetryStrategy = Toad.defaultConfig()
             .msg.con.ackedRetryStrategy;
-          RetryStrategy unackedRetryStrategy = ToadRuntime.defaultConfig()
+          RetryStrategy unackedRetryStrategy = Toad.defaultConfig()
             .msg.con.unackedRetryStrategy;
-          u16 maxAttempts = ToadRuntime.defaultConfig().msg.con.maxAttempts;
+          u16 maxAttempts = Toad.defaultConfig().msg.con.maxAttempts;
 
           public Con build() {
             return new Con(
@@ -343,9 +355,9 @@ public class ToadRuntime {
 
         public static final class Builder {
 
-          RetryStrategy retryStrategy = ToadRuntime.defaultConfig()
+          RetryStrategy retryStrategy = Toad.defaultConfig()
             .msg.non.retryStrategy;
-          u16 maxAttempts = ToadRuntime.defaultConfig().msg.non.maxAttempts;
+          u16 maxAttempts = Toad.defaultConfig().msg.non.maxAttempts;
 
           public Non build() {
             return new Non(this.retryStrategy, this.maxAttempts);

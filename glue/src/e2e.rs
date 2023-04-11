@@ -6,13 +6,11 @@ use toad_jni::java::{self, Object, Signature};
 use toad_msg::alloc::Message;
 use toad_msg::{Code, Id, Token, Type};
 
-use crate::message_type::MessageType;
-use crate::runtime::Runtime;
-use crate::runtime_config::RuntimeConfig;
+use crate::{dev, Runtime};
 
 #[non_exhaustive]
 struct State {
-  pub runtime: Runtime,
+  pub runtime: dev::toad::Toad,
   pub env: java::Env<'static>,
   pub client: crate::Runtime,
   pub srv_addr: SocketAddr,
@@ -22,12 +20,12 @@ fn init() -> State {
   let mut _env = crate::test::init();
   let env = &mut _env;
 
-  let cfg = RuntimeConfig::new(env,
-                               Config::default(),
-                               std::net::SocketAddr::new(std::net::Ipv4Addr::UNSPECIFIED.into(),
-                                                         5683));
-  let runtime = Runtime::new(env, cfg);
-  let client = crate::Runtime::try_new("0.0.0.0:5684", Default::default()).unwrap();
+  let cfg =
+    dev::toad::Config::new(env,
+                           Config::default(),
+                           std::net::SocketAddr::new(std::net::Ipv4Addr::UNSPECIFIED.into(), 5683));
+  let runtime = dev::toad::Toad::new(env, cfg);
+  let client = Runtime::try_new("0.0.0.0:5684", Default::default()).unwrap();
 
   State { runtime,
           env: _env,
@@ -60,7 +58,7 @@ fn message_ref_should_throw_when_used_after_close(State {runtime, env, client, s
   let req_o = req.downcast(env);
   env.call_method(req_o.as_local(),
                   "type",
-                  Signature::of::<fn() -> MessageType>(),
+                  Signature::of::<fn() -> dev::toad::msg::Type>(),
                   &[])
      .ok();
 

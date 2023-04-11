@@ -6,15 +6,15 @@ import java.util.List;
 public interface Message {
   public InetSocketAddress source();
 
-  public int id();
+  public Id id();
 
-  public byte[] token();
+  public Token token();
 
-  public MessageCode code();
+  public Code code();
 
-  public MessageType type();
+  public Type type();
 
-  public List<MessageOption> options();
+  public List<Option> options();
 
   public byte[] payloadBytes();
 

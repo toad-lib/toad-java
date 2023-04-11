@@ -2,7 +2,7 @@ use toad::retry::Strategy;
 use toad::time::Millis;
 use toad_jni::java::{self, Object};
 
-use crate::uint;
+use crate::dev::toad::ffi;
 
 pub struct RetryStrategyExp(java::lang::Object);
 
@@ -26,12 +26,12 @@ impl RetryStrategyExp {
   }
 
   pub fn init_min(&self, e: &mut java::Env) -> Millis {
-    static INIT_MIN: java::Field<RetryStrategyExp, uint::u64> = java::Field::new("initMin");
+    static INIT_MIN: java::Field<RetryStrategyExp, ffi::u64> = java::Field::new("initMin");
     Millis::new(INIT_MIN.get(e, self).to_rust(e))
   }
 
   pub fn init_max(&self, e: &mut java::Env) -> Millis {
-    static INIT_MAX: java::Field<RetryStrategyExp, uint::u64> = java::Field::new("initMax");
+    static INIT_MAX: java::Field<RetryStrategyExp, ffi::u64> = java::Field::new("initMax");
     Millis::new(INIT_MAX.get(e, self).to_rust(e))
   }
 }
@@ -58,12 +58,12 @@ impl RetryStrategyDelay {
   }
 
   pub fn min(&self, e: &mut java::Env) -> Millis {
-    static MIN: java::Field<RetryStrategyDelay, uint::u64> = java::Field::new("min");
+    static MIN: java::Field<RetryStrategyDelay, ffi::u64> = java::Field::new("min");
     Millis::new(MIN.get(e, self).to_rust(e))
   }
 
   pub fn max(&self, e: &mut java::Env) -> Millis {
-    static MAX: java::Field<RetryStrategyDelay, uint::u64> = java::Field::new("max");
+    static MAX: java::Field<RetryStrategyDelay, ffi::u64> = java::Field::new("max");
     Millis::new(MAX.get(e, self).to_rust(e))
   }
 }

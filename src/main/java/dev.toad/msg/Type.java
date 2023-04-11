@@ -1,12 +1,12 @@
 package dev.toad.msg;
 
-public enum MessageType {
+public enum Type {
   CON(1),
   NON(2),
   ACK(3),
   RESET(4);
 
-  private MessageType(int val) {}
+  private Type(int val) {}
 
   public String toString() {
     return switch (this) {
@@ -18,7 +18,7 @@ public enum MessageType {
     };
   }
 
-  public static MessageType fromString(String s) {
+  public static Type fromString(String s) {
     return switch (s.toLowerCase().trim()) {
       case "con" -> CON;
       case "non" -> NON;

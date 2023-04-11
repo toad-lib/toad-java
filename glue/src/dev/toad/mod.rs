@@ -1,42 +1,95 @@
+pub mod ffi;
+pub mod msg;
+
+mod retry_strategy;
 use std::net::{Ipv4Addr, SocketAddr};
 
-use jni::objects::JClass;
+use jni::objects::{JClass, JObject};
 use jni::sys::jobject;
-use toad::config::{self, BytesPerSecond, Config};
+pub use retry_strategy::RetryStrategy;
+use toad::platform::Platform;
 use toad::retry::{Attempts, Strategy};
 use toad::time::Millis;
-use toad_jni::java::{self, Class, Object};
+use toad_jni::java::{self, Object};
 
-use crate::retry_strategy::RetryStrategy;
-use crate::uint;
+use crate::mem::{Shared, SharedMemoryRegion};
+use crate::Runtime;
 
-pub struct RuntimeConfig(java::lang::Object);
+pub struct Toad(java::lang::Object);
 
-java::object_newtype!(RuntimeConfig);
-impl java::Class for RuntimeConfig {
-  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config");
+impl Toad {
+  pub fn new(e: &mut java::Env, cfg: Config) -> Self {
+    static CTOR: java::Constructor<Toad, fn(Config)> = java::Constructor::new();
+    CTOR.invoke(e, cfg)
+  }
+
+  pub fn poll_req(&self, e: &mut java::Env) -> Option<msg::ref_::Message> {
+    static POLL_REQ: java::Method<Toad, fn() -> java::util::Optional<msg::ref_::Message>> =
+      java::Method::new("pollReq");
+    POLL_REQ.invoke(e, self).to_option(e)
+  }
+
+  pub fn config(&self, e: &mut java::Env) -> Config {
+    static CONFIG: java::Method<Toad, fn() -> Config> = java::Method::new("config");
+    CONFIG.invoke(e, self)
+  }
+
+  fn init_impl(e: &mut java::Env, cfg: Config) -> i64 {
+    let r = || Runtime::try_new(cfg.addr(e), cfg.to_toad(e)).unwrap();
+    unsafe { crate::mem::Shared::init(r).addr() as i64 }
+  }
+
+  fn poll_req_impl(e: &mut java::Env, addr: i64) -> java::util::Optional<msg::ref_::Message> {
+    match unsafe {
+            Shared::deref::<Runtime>(/* TODO */ 0, addr).as_ref()
+                                                        .unwrap()
+          }.poll_req()
+    {
+      | Ok(req) => {
+        let mr = msg::ref_::Message::new(e, req.unwrap().into());
+        java::util::Optional::<msg::ref_::Message>::of(e, mr)
+      },
+      | Err(nb::Error::WouldBlock) => java::util::Optional::<msg::ref_::Message>::empty(e),
+      | Err(nb::Error::Other(err)) => {
+        e.throw(format!("{:?}", err)).unwrap();
+        java::util::Optional::<msg::ref_::Message>::empty(e)
+      },
+    }
+  }
 }
 
-impl RuntimeConfig {
+java::object_newtype!(Toad);
+
+impl java::Class for Toad {
+  const PATH: &'static str = package!(dev.toad.Toad);
+}
+
+pub struct Config(java::lang::Object);
+
+java::object_newtype!(Config);
+impl java::Class for Config {
+  const PATH: &'static str = concat!(package!(dev.toad.Toad), "$Config");
+}
+
+impl Config {
   pub fn addr(&self, e: &mut java::Env) -> SocketAddr {
-    static ADDRESS: java::Field<RuntimeConfig, java::net::InetSocketAddress> =
-      java::Field::new("addr");
+    static ADDRESS: java::Field<Config, java::net::InetSocketAddress> = java::Field::new("addr");
     ADDRESS.get(e, self).to_std(e)
   }
 
   pub fn concurrency(&self, e: &mut java::Env) -> u8 {
-    static RUNTIME_CONFIG_CONCURRENCY: java::Field<RuntimeConfig, uint::u8> =
+    static RUNTIME_CONFIG_CONCURRENCY: java::Field<Config, ffi::u8> =
       java::Field::new("concurrency");
     RUNTIME_CONFIG_CONCURRENCY.get(e, self).to_rust(e)
   }
 
   pub fn msg(&self, e: &mut java::Env) -> Msg {
-    static RUNTIME_CONFIG_MSG: java::Method<RuntimeConfig, fn() -> Msg> = java::Method::new("msg");
+    static RUNTIME_CONFIG_MSG: java::Method<Config, fn() -> Msg> = java::Method::new("msg");
     RUNTIME_CONFIG_MSG.invoke(e, self)
   }
 
-  pub fn new(e: &mut java::Env, c: Config, addr: SocketAddr) -> Self {
-    static CTOR: java::Constructor<RuntimeConfig, fn(java::net::InetSocketAddress, uint::u8, Msg)> =
+  pub fn new(e: &mut java::Env, c: toad::config::Config, addr: SocketAddr) -> Self {
+    static CTOR: java::Constructor<Config, fn(java::net::InetSocketAddress, ffi::u8, Msg)> =
       java::Constructor::new();
 
     let con = Con::new(e,
@@ -51,7 +104,7 @@ impl RuntimeConfig {
                        con,
                        non);
 
-    let concurrency = uint::u8::from_rust(e, c.max_concurrent_requests);
+    let concurrency = ffi::u8::from_rust(e, c.max_concurrent_requests);
 
     let address = java::net::InetSocketAddress::from_std(e, addr);
 
@@ -59,23 +112,23 @@ impl RuntimeConfig {
     jcfg
   }
 
-  pub fn to_toad(&self, e: &mut java::Env) -> config::Config {
+  pub fn to_toad(&self, e: &mut java::Env) -> toad::config::Config {
     let msg = self.msg(e);
     let con = msg.con(e);
     let non = msg.non(e);
 
-    config::Config { max_concurrent_requests: self.concurrency(e) as u8,
-                     msg: config::Msg { token_seed: msg.token_seed(e) as _,
-                                        probing_rate: BytesPerSecond(msg.probing_rate(e) as _),
+    toad::config::Config { max_concurrent_requests: self.concurrency(e) as u8,
+                     msg: toad::config::Msg { token_seed: msg.token_seed(e) as _,
+                                        probing_rate: toad::config::BytesPerSecond(msg.probing_rate(e) as _),
                                         multicast_response_leisure:
                                           msg.multicast_response_leisure(e),
-                                        con: config::Con { unacked_retry_strategy:
+                                        con: toad::config::Con { unacked_retry_strategy:
                                                              con.unacked_retry_strategy(e),
                                                            acked_retry_strategy:
                                                              con.acked_retry_strategy(e),
                                                            max_attempts:
                                                              Attempts(con.max_attempts(e) as _) },
-                                        non: config::Non { retry_strategy:
+                                        non: toad::config::Non { retry_strategy:
                                                              non.retry_strategy(e),
                                                            max_attempts:
                                                              Attempts(non.max_attempts(e) as _) } } }
@@ -87,7 +140,7 @@ pub struct Msg(java::lang::Object);
 java::object_newtype!(Msg);
 
 impl java::Class for Msg {
-  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg");
+  const PATH: &'static str = concat!(package!(dev.toad.Toad), "$Config$Msg");
 }
 
 impl Msg {
@@ -98,10 +151,10 @@ impl Msg {
              con: Con,
              non: Non)
              -> Self {
-    static CTOR: java::Constructor<Msg, fn(uint::u16, uint::u16, java::time::Duration, Con, Non)> =
+    static CTOR: java::Constructor<Msg, fn(ffi::u16, ffi::u16, java::time::Duration, Con, Non)> =
       java::Constructor::new();
-    let token_seed = uint::u16::from_rust(e, token_seed);
-    let probe_rate = uint::u16::from_rust(e, probe_rate);
+    let token_seed = ffi::u16::from_rust(e, token_seed);
+    let probe_rate = ffi::u16::from_rust(e, probe_rate);
     let multicast_response_leisure =
       java::time::Duration::of_millis(e, multicast_response_leisure.0 as i64);
 
@@ -147,20 +200,20 @@ pub struct Con(java::lang::Object);
 
 java::object_newtype!(Con);
 impl java::Class for Con {
-  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg$Con");
+  const PATH: &'static str = concat!(package!(dev.toad.Toad), "$Config$Msg$Con");
 }
 
 impl Con {
   pub fn new(e: &mut java::Env,
-             unacked: toad::retry::Strategy,
-             acked: toad::retry::Strategy,
+             unacked: Strategy,
+             acked: Strategy,
              max_attempts: Attempts)
              -> Self {
-    static CTOR: java::Constructor<Con, fn(RetryStrategy, RetryStrategy, uint::u16)> =
+    static CTOR: java::Constructor<Con, fn(RetryStrategy, RetryStrategy, ffi::u16)> =
       java::Constructor::new();
     let unacked = RetryStrategy::from_toad(e, unacked);
     let acked = RetryStrategy::from_toad(e, acked);
-    let att = uint::u16::from_rust(e, max_attempts.0);
+    let att = ffi::u16::from_rust(e, max_attempts.0);
     CTOR.invoke(e, unacked, acked, att)
   }
 
@@ -186,14 +239,14 @@ pub struct Non(java::lang::Object);
 
 java::object_newtype!(Non);
 impl java::Class for Non {
-  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg$Non");
+  const PATH: &'static str = concat!(package!(dev.toad.Toad), "$Config$Msg$Non");
 }
 
 impl Non {
-  pub fn new(e: &mut java::Env, strat: toad::retry::Strategy, max_attempts: Attempts) -> Self {
-    static CTOR: java::Constructor<Non, fn(RetryStrategy, uint::u16)> = java::Constructor::new();
+  pub fn new(e: &mut java::Env, strat: Strategy, max_attempts: Attempts) -> Self {
+    static CTOR: java::Constructor<Non, fn(RetryStrategy, ffi::u16)> = java::Constructor::new();
     let strat = RetryStrategy::from_toad(e, strat);
-    let att = uint::u16::from_rust(e, max_attempts.0);
+    let att = ffi::u16::from_rust(e, max_attempts.0);
     CTOR.invoke(e, strat, att)
   }
 
@@ -210,10 +263,30 @@ impl Non {
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_Runtime_defaultConfigImpl<'local>(mut env: java::Env<'local>,
-                                                                       _: JClass<'local>)
-                                                                       -> jobject {
-  RuntimeConfig::new(&mut env,
-                     Config::default(),
-                     SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683)).yield_to_java(&mut env)
+pub extern "system" fn Java_dev_toad_Toad_defaultConfigImpl<'local>(mut env: java::Env<'local>,
+                                                                    _: JClass<'local>)
+                                                                    -> jobject {
+  Config::new(&mut env,
+              toad::config::Config::default(),
+              SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683)).yield_to_java(&mut env)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_init<'local>(mut e: java::Env<'local>,
+                                                       _: JClass<'local>,
+                                                       cfg: JObject<'local>)
+                                                       -> i64 {
+  let e = &mut e;
+  let cfg = java::lang::Object::from_local(e, cfg).upcast_to::<Config>(e);
+
+  Toad::init_impl(e, cfg)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_pollReq<'local>(mut e: java::Env<'local>,
+                                                          _: JClass<'local>,
+                                                          addr: i64)
+                                                          -> jobject {
+  let e = &mut e;
+  Toad::poll_req_impl(e, addr).yield_to_java(e)
 }

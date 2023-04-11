@@ -5,8 +5,8 @@ use std::ffi::c_void;
 use jni::JavaVM;
 use mem::SharedMemoryRegion;
 
-pub type Runtime =
-  toad::std::Platform<toad::std::dtls::N, toad::step::runtime::std::Runtime<toad::std::dtls::N>>;
+pub type Runtime = ::toad::std::Platform<::toad::std::dtls::N,
+                                         ::toad::step::runtime::std::Runtime<::toad::std::dtls::N>>;
 
 #[macro_export]
 macro_rules! package {
@@ -15,16 +15,8 @@ macro_rules! package {
   (ext $start:ident.$($thing:ident).+) => {concat!(stringify!($start), $("/", stringify!($thing)),+)};
 }
 
+pub mod dev;
 pub mod mem;
-pub mod message_code;
-pub mod message_opt_ref;
-pub mod message_opt_value_ref;
-pub mod message_ref;
-pub mod message_type;
-pub mod retry_strategy;
-pub mod runtime;
-pub mod runtime_config;
-pub mod uint;
 
 #[no_mangle]
 pub extern "system" fn JNI_OnLoad(jvm: JavaVM, _: *const c_void) -> i32 {
@@ -51,8 +43,7 @@ pub mod test {
   use toad::time::Millis;
   use toad_jni::java;
 
-  use crate::retry_strategy::RetryStrategy;
-  use crate::runtime_config::RuntimeConfig;
+  use crate::dev;
 
   pub fn init<'a>() -> java::Env<'a> {
     static INIT: Once = Once::new();
@@ -82,9 +73,9 @@ pub mod test {
     let mut e = init();
     let e = &mut e;
 
-    let r = RuntimeConfig::new(e,
-                               Config::default(),
-                               SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683));
+    let r = dev::toad::Config::new(e,
+                                   Config::default(),
+                                   SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683));
     assert_eq!(r.to_toad(e), Config::default());
   }
 
@@ -95,24 +86,23 @@ pub mod test {
 
     let r = Strategy::Exponential { init_min: Millis::new(0),
                                     init_max: Millis::new(100) };
-    assert_eq!(RetryStrategy::from_toad(e, r).to_toad(e), r);
+    assert_eq!(dev::toad::RetryStrategy::from_toad(e, r).to_toad(e), r);
 
     let r = Strategy::Delay { min: Millis::new(0),
                               max: Millis::new(100) };
-    assert_eq!(RetryStrategy::from_toad(e, r).to_toad(e), r);
+    assert_eq!(dev::toad::RetryStrategy::from_toad(e, r).to_toad(e), r);
   }
 
   #[test]
   fn uint() {
-    use crate::uint;
-
     let mut e = init();
     let e = &mut e;
 
     macro_rules! case {
       ($u:ident) => {{
-        assert_eq!(uint::$u::from_rust(e, $u::MAX).to_rust(e), $u::MAX);
-        assert_eq!(uint::$u::from_rust(e, 0).to_rust(e), 0);
+        assert_eq!(dev::toad::ffi::$u::from_rust(e, $u::MAX).to_rust(e),
+                   $u::MAX);
+        assert_eq!(dev::toad::ffi::$u::from_rust(e, 0).to_rust(e), 0);
       }};
     }
 
