@@ -1,3 +1,5 @@
+use std::net::{Ipv4Addr, SocketAddr};
+
 use jni::objects::JClass;
 use jni::sys::jobject;
 use toad::config::{self, BytesPerSecond, Config};
@@ -12,13 +14,14 @@ pub struct RuntimeConfig(java::lang::Object);
 
 java::object_newtype!(RuntimeConfig);
 impl java::Class for RuntimeConfig {
-  const PATH: &'static str = concat!(package!(dev.toad.Runtime), "$Config");
+  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config");
 }
 
 impl RuntimeConfig {
-  pub fn port(&self, e: &mut java::Env) -> u16 {
-    static RUNTIME_CONFIG_PORT: java::Field<RuntimeConfig, uint::u16> = java::Field::new("port");
-    RUNTIME_CONFIG_PORT.get(e, self).to_rust(e)
+  pub fn addr(&self, e: &mut java::Env) -> SocketAddr {
+    static ADDRESS: java::Field<RuntimeConfig, java::net::InetSocketAddress> =
+      java::Field::new("addr");
+    ADDRESS.get(e, self).to_std(e)
   }
 
   pub fn concurrency(&self, e: &mut java::Env) -> u8 {
@@ -32,8 +35,8 @@ impl RuntimeConfig {
     RUNTIME_CONFIG_MSG.invoke(e, self)
   }
 
-  pub fn new(e: &mut java::Env, c: Config, port: u16) -> Self {
-    static CTOR: java::Constructor<RuntimeConfig, fn(uint::u16, uint::u8, Msg)> =
+  pub fn new(e: &mut java::Env, c: Config, addr: SocketAddr) -> Self {
+    static CTOR: java::Constructor<RuntimeConfig, fn(java::net::InetSocketAddress, uint::u8, Msg)> =
       java::Constructor::new();
 
     let con = Con::new(e,
@@ -48,10 +51,11 @@ impl RuntimeConfig {
                        con,
                        non);
 
-    let port = uint::u16::from_rust(e, port);
     let concurrency = uint::u8::from_rust(e, c.max_concurrent_requests);
 
-    let jcfg = CTOR.invoke(e, port, concurrency, msg);
+    let address = java::net::InetSocketAddress::from_std(e, addr);
+
+    let jcfg = CTOR.invoke(e, address, concurrency, msg);
     jcfg
   }
 
@@ -83,7 +87,7 @@ pub struct Msg(java::lang::Object);
 java::object_newtype!(Msg);
 
 impl java::Class for Msg {
-  const PATH: &'static str = concat!(package!(dev.toad.Runtime), "$Config$Msg");
+  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg");
 }
 
 impl Msg {
@@ -143,7 +147,7 @@ pub struct Con(java::lang::Object);
 
 java::object_newtype!(Con);
 impl java::Class for Con {
-  const PATH: &'static str = concat!(package!(dev.toad.Runtime), "$Config$Msg$Con");
+  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg$Con");
 }
 
 impl Con {
@@ -182,7 +186,7 @@ pub struct Non(java::lang::Object);
 
 java::object_newtype!(Non);
 impl java::Class for Non {
-  const PATH: &'static str = concat!(package!(dev.toad.Runtime), "$Config$Msg$Non");
+  const PATH: &'static str = concat!(package!(dev.toad.ToadRuntime), "$Config$Msg$Non");
 }
 
 impl Non {
@@ -209,5 +213,7 @@ impl Non {
 pub extern "system" fn Java_dev_toad_Runtime_defaultConfigImpl<'local>(mut env: java::Env<'local>,
                                                                        _: JClass<'local>)
                                                                        -> jobject {
-  RuntimeConfig::new(&mut env, Config::default(), 5683).yield_to_java(&mut env)
+  RuntimeConfig::new(&mut env,
+                     Config::default(),
+                     SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683)).yield_to_java(&mut env)
 }

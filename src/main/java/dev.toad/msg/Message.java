@@ -1,8 +1,11 @@
 package dev.toad.msg;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 public interface Message {
+  public InetSocketAddress source();
+
   public int id();
 
   public byte[] token();

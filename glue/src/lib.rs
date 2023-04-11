@@ -42,6 +42,7 @@ pub mod e2e;
 
 #[cfg(test)]
 pub mod test {
+  use std::net::{Ipv4Addr, SocketAddr};
   use std::sync::Once;
 
   use jni::{InitArgsBuilder, JavaVM};
@@ -81,7 +82,9 @@ pub mod test {
     let mut e = init();
     let e = &mut e;
 
-    let r = RuntimeConfig::new(e, Config::default(), 5683);
+    let r = RuntimeConfig::new(e,
+                               Config::default(),
+                               SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683));
     assert_eq!(r.to_toad(e), Config::default());
   }
 

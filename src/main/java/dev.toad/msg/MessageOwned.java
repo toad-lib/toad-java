@@ -1,5 +1,6 @@
 package dev.toad.msg;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -7,12 +8,13 @@ import java.util.stream.Collectors;
 
 public class MessageOwned implements Message {
 
-  private static int id;
-  private static byte[] token;
-  private static byte[] payload;
-  private static MessageCode code;
-  private static MessageType type;
-  private static List<MessageOption> opts;
+  private final InetSocketAddress source;
+  private final int id;
+  private final byte[] token;
+  private final byte[] payload;
+  private final MessageCode code;
+  private final MessageType type;
+  private final List<MessageOption> opts;
 
   public MessageOwned(MessageRef ref) {
     this.id = ref.id();
@@ -20,6 +22,7 @@ public class MessageOwned implements Message {
     this.code = ref.code();
     this.type = ref.type();
     this.payload = ref.payloadBytes().clone();
+    this.source = ref.source();
 
     this.opts =
       Arrays
@@ -27,6 +30,10 @@ public class MessageOwned implements Message {
         .stream()
         .map(MessageOptionRef::clone)
         .collect(Collectors.toList());
+  }
+
+  public InetSocketAddress source() {
+    return this.source;
   }
 
   public int id() {

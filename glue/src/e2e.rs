@@ -1,18 +1,11 @@
-use std::ptr::drop_in_place;
-use std::sync::Once;
-use std::time::Duration;
-
-use jni::objects::GlobalRef;
 use no_std_net::SocketAddr;
 use toad::config::Config;
 use toad::net::Addrd;
 use toad::platform::Platform;
-use toad_jni::java::lang::System;
 use toad_jni::java::{self, Object, Signature};
 use toad_msg::alloc::Message;
 use toad_msg::{Code, Id, Token, Type};
 
-use crate::message_ref::MessageRef;
 use crate::message_type::MessageType;
 use crate::runtime::Runtime;
 use crate::runtime_config::RuntimeConfig;
@@ -29,8 +22,11 @@ fn init() -> State {
   let mut _env = crate::test::init();
   let env = &mut _env;
 
-  let cfg = RuntimeConfig::new(env, Config::default(), 5683);
-  let runtime = Runtime::get_or_init(env, cfg);
+  let cfg = RuntimeConfig::new(env,
+                               Config::default(),
+                               std::net::SocketAddr::new(std::net::Ipv4Addr::UNSPECIFIED.into(),
+                                                         5683));
+  let runtime = Runtime::new(env, cfg);
   let client = crate::Runtime::try_new("0.0.0.0:5684", Default::default()).unwrap();
 
   State { runtime,

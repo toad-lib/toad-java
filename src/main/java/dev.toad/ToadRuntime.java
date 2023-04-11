@@ -2,53 +2,99 @@ package dev.toad;
 
 import dev.toad.ffi.*;
 import dev.toad.msg.MessageRef;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Function;
 
-interface BuilderPort {
-  Runtime.Config.Builder port(short port);
-}
+public class ToadRuntime {
 
-public class Runtime {
+  static native Config defaultConfigImpl();
 
-  protected static native Config defaultConfigImpl();
+  static Config defaultConfig = null;
 
-  protected static Config defaultConfig = null;
-
-  protected static Config defaultConfig() {
-    if (Runtime.defaultConfig == null) {
-      Runtime.defaultConfig = Runtime.defaultConfigImpl();
+  static Config defaultConfig() {
+    if (ToadRuntime.defaultConfig == null) {
+      ToadRuntime.defaultConfig = ToadRuntime.defaultConfigImpl();
     }
 
-    return Runtime.defaultConfig;
+    return ToadRuntime.defaultConfig;
   }
 
   static {
     System.loadLibrary("toad_java_glue");
   }
 
-  private final long addr;
+  private final Ptr ptr;
+  private final Config config;
 
   private static native long init(Config o);
 
-  private native Optional<MessageRef> pollReq();
+  private static native Optional<MessageRef> pollReq(long addr);
 
-  public static Runtime getOrInit(Config o) {
-    return new Runtime(o);
+  Optional<MessageRef> pollReq() {
+    return ToadRuntime.pollReq(this.ptr.addr());
   }
 
-  public Runtime(Config o) {
-    this.addr = Runtime.init(o);
+  public static BuilderRequiresBindToAddress builder() {
+    return new Builder();
+  }
+
+  ToadRuntime(Config o) {
+    this.config = o;
+    this.ptr = Ptr.register(this.getClass(), this.init(o));
+  }
+
+  public Config config() {
+    return this.config;
+  }
+
+  public interface BuilderRequiresBindToAddress {
+    ToadRuntime.Builder port(short port);
+    ToadRuntime.Builder address(InetSocketAddress addr);
+  }
+
+  public static final class Builder implements BuilderRequiresBindToAddress {
+
+    Config.Msg.Builder msg = Config.Msg.builder();
+    Optional<InetSocketAddress> addr = Optional.empty();
+    u8 concurrency = ToadRuntime.defaultConfig().concurrency;
+
+    Builder() {}
+
+    public ToadRuntime build() {
+      var cfg = new Config(this.addr.get(), this.concurrency, this.msg.build());
+      return new ToadRuntime(cfg);
+    }
+
+    public Builder msg(Function<Config.Msg.Builder, Config.Msg.Builder> f) {
+      this.msg = f.apply(this.msg);
+      return this;
+    }
+
+    public Builder port(short port) {
+      return this.address(new InetSocketAddress(port));
+    }
+
+    public Builder address(InetSocketAddress addr) {
+      this.addr = Optional.of(addr);
+      return this;
+    }
+
+    public Builder concurrency(byte concurrency) {
+      this.concurrency = new u8(concurrency);
+      return this;
+    }
   }
 
   public static final class Config {
 
-    protected u16 port;
-    protected u8 concurrency;
-    protected Msg msg;
+    final InetSocketAddress addr;
+    final u8 concurrency;
+    final Msg msg;
 
-    protected Config(u16 port, u8 concurrency, Msg msg) {
-      this.port = port;
+    Config(InetSocketAddress addr, u8 concurrency, Msg msg) {
+      this.addr = addr;
       this.concurrency = concurrency;
       this.msg = msg;
     }
@@ -56,15 +102,15 @@ public class Runtime {
     @Override
     public boolean equals(Object other) {
       return switch (other) {
-        case Config o -> o.port == this.port &&
+        case Config o -> o.addr == this.addr &&
         o.concurrency == this.concurrency &&
         o.msg == this.msg;
         default -> false;
       };
     }
 
-    public int port() {
-      return this.port.intValue();
+    public InetSocketAddress addr() {
+      return this.addr();
     }
 
     public short concurrency() {
@@ -75,43 +121,19 @@ public class Runtime {
       return this.msg;
     }
 
-    public static final class Builder implements BuilderPort {
-
-      public final Msg.Builder msg = Msg.builder();
-
-      protected Optional<u16> port = Optional.empty();
-      protected u8 concurrency = Runtime.defaultConfig().concurrency;
-
-      protected Builder() {}
-
-      public Config build() {
-        return new Config(this.port.get(), this.concurrency, this.msg.build());
-      }
-
-      public Builder port(short port) {
-        this.port = Optional.of(new u16(port));
-        return this;
-      }
-
-      public Builder concurrency(byte concurrency) {
-        this.concurrency = new u8(concurrency);
-        return this;
-      }
-    }
-
     public static final class Msg {
 
-      protected u16 tokenSeed;
-      protected u16 probingRateBytesPerSecond;
-      protected Duration multicastResponseLeisure;
-      protected Con con;
-      protected Non non;
+      u16 tokenSeed;
+      u16 probingRateBytesPerSecond;
+      Duration multicastResponseLeisure;
+      Con con;
+      Non non;
 
       public static Builder builder() {
         return new Builder();
       }
 
-      protected Msg(
+      Msg(
         u16 tokenSeed,
         u16 probingRateBytesPerSecond,
         Duration multicastResponseLeisure,
@@ -159,13 +181,12 @@ public class Runtime {
 
       public static final class Builder {
 
-        public final Con.Builder con = Con.builder();
-        public final Non.Builder non = Non.builder();
-
-        protected u16 tokenSeed = Runtime.defaultConfig().msg.tokenSeed;
-        protected u16 probingRateBytesPerSecond = Runtime.defaultConfig()
+        Con.Builder con = Con.builder();
+        Non.Builder non = Non.builder();
+        u16 tokenSeed = ToadRuntime.defaultConfig().msg.tokenSeed;
+        u16 probingRateBytesPerSecond = ToadRuntime.defaultConfig()
           .msg.probingRateBytesPerSecond;
-        protected Duration multicastResponseLeisure = Runtime.defaultConfig()
+        Duration multicastResponseLeisure = ToadRuntime.defaultConfig()
           .msg.multicastResponseLeisure;
 
         public Msg build() {
@@ -176,6 +197,16 @@ public class Runtime {
             this.con.build(),
             this.non.build()
           );
+        }
+
+        public Builder con(Function<Con.Builder, Con.Builder> f) {
+          this.con = f.apply(this.con);
+          return this;
+        }
+
+        public Builder non(Function<Non.Builder, Non.Builder> f) {
+          this.non = f.apply(this.non);
+          return this;
         }
 
         public Builder tokenSeed(u16 tokenSeed) {
@@ -197,20 +228,20 @@ public class Runtime {
           return this;
         }
 
-        protected Builder() {}
+        Builder() {}
       }
 
       public static final class Con {
 
-        protected RetryStrategy ackedRetryStrategy;
-        protected RetryStrategy unackedRetryStrategy;
-        protected u16 maxAttempts;
+        final RetryStrategy ackedRetryStrategy;
+        final RetryStrategy unackedRetryStrategy;
+        final u16 maxAttempts;
 
         public static Builder builder() {
           return new Builder();
         }
 
-        protected Con(
+        Con(
           RetryStrategy unackedRetryStrategy,
           RetryStrategy ackedRetryStrategy,
           u16 maxAttempts
@@ -244,12 +275,11 @@ public class Runtime {
 
         public static final class Builder {
 
-          protected RetryStrategy ackedRetryStrategy = Runtime.defaultConfig()
+          RetryStrategy ackedRetryStrategy = ToadRuntime.defaultConfig()
             .msg.con.ackedRetryStrategy;
-          protected RetryStrategy unackedRetryStrategy = Runtime.defaultConfig()
+          RetryStrategy unackedRetryStrategy = ToadRuntime.defaultConfig()
             .msg.con.unackedRetryStrategy;
-          protected u16 maxAttempts = Runtime.defaultConfig()
-            .msg.con.maxAttempts;
+          u16 maxAttempts = ToadRuntime.defaultConfig().msg.con.maxAttempts;
 
           public Con build() {
             return new Con(
@@ -276,20 +306,20 @@ public class Runtime {
             return this;
           }
 
-          protected Builder() {}
+          Builder() {}
         }
       }
 
       public static final class Non {
 
-        protected RetryStrategy retryStrategy;
-        protected u16 maxAttempts;
+        final RetryStrategy retryStrategy;
+        final u16 maxAttempts;
 
         public static Builder builder() {
           return new Builder();
         }
 
-        protected Non(RetryStrategy retryStrategy, u16 maxAttempts) {
+        Non(RetryStrategy retryStrategy, u16 maxAttempts) {
           this.retryStrategy = retryStrategy;
           this.maxAttempts = maxAttempts;
         }
@@ -313,10 +343,9 @@ public class Runtime {
 
         public static final class Builder {
 
-          protected RetryStrategy retryStrategy = Runtime.defaultConfig()
+          RetryStrategy retryStrategy = ToadRuntime.defaultConfig()
             .msg.non.retryStrategy;
-          protected u16 maxAttempts = Runtime.defaultConfig()
-            .msg.non.maxAttempts;
+          u16 maxAttempts = ToadRuntime.defaultConfig().msg.non.maxAttempts;
 
           public Non build() {
             return new Non(this.retryStrategy, this.maxAttempts);
@@ -332,7 +361,7 @@ public class Runtime {
             return this;
           }
 
-          protected Builder() {}
+          Builder() {}
         }
       }
     }

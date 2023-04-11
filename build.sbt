@@ -14,13 +14,6 @@ val path = settingKey[Map[String, String]]("paths")
 fork := true
 
 javaOptions += "--enable-preview"
-javacOptions ++= Seq(
-  "--enable-preview",
-  "--release",
-  "20",
-  "-Xlint:unchecked",
-  "-Xlint:deprecation"
-)
 
 lazy val root = project
   .in(file("."))
@@ -32,6 +25,18 @@ lazy val root = project
     glob := Map(
       "java.sources" -> baseDirectory.value.toGlob / "src" / "main" / "java" / ** / "*.java",
       "glue.sources" -> baseDirectory.value.toGlob / "glue" / "src" / ** / "*.rs"
+    ),
+    Compile / doc / javacOptions ++= Seq(
+      "--enable-preview",
+      "--release",
+      "20",
+    ),
+    Compile / compile / javacOptions ++= Seq(
+      "--enable-preview",
+      "--release",
+      "20",
+      "-Xlint:unchecked",
+      "-Xlint:deprecation"
     ),
     path := Map(
       "glue.base" -> (baseDirectory.value / "glue").toString,

@@ -1,8 +1,10 @@
 package dev.toad.msg;
 
 import dev.toad.ffi.Ptr;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A pointer to a [`toad_msg::Message`](https://docs.rs/toad-msg/latest/toad_msg/struct.Message.html)
@@ -14,6 +16,10 @@ import java.util.List;
 public class MessageRef implements Message, AutoCloseable {
 
   private Ptr ptr;
+
+  private Optional<InetSocketAddress> source = Optional.empty();
+
+  private static native InetSocketAddress source(long addr);
 
   private static native int id(long addr);
 
@@ -33,6 +39,14 @@ public class MessageRef implements Message, AutoCloseable {
 
   public Message clone() {
     return new MessageOwned(this);
+  }
+
+  public InetSocketAddress source() {
+    if (this.source.isEmpty()) {
+      this.source = Optional.of(this.source(this.ptr.addr()));
+    }
+
+    return this.source.get();
   }
 
   public int id() {
