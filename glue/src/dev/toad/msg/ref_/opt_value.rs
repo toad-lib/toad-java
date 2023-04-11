@@ -2,7 +2,7 @@ use jni::objects::JClass;
 use jni::sys::jobject;
 use toad_jni::java;
 
-use crate::mem::SharedMemoryRegion;
+use crate::mem::{Shared, SharedMemoryRegion};
 
 pub struct OptValue(java::lang::Object);
 
@@ -17,9 +17,12 @@ impl OptValue {
     CTOR.invoke(env, addr)
   }
 
-  pub unsafe fn ptr<'a>(addr: i64) -> &'a mut toad_msg::OptValue<Vec<u8>> {
-    crate::mem::Shared::deref::<toad_msg::OptValue<Vec<u8>>>(/* TODO */ 0, addr).as_mut()
-                                                                                .unwrap()
+  pub fn bytes(&self, env: &mut java::Env) -> Vec<u8> {
+    static AS_BYTES: java::Method<OptValue, fn() -> Vec<i8>> = java::Method::new("asBytes");
+    AS_BYTES.invoke(env, self)
+            .into_iter()
+            .map(|i| u8::from_be_bytes(i.to_be_bytes()))
+            .collect()
   }
 }
 
@@ -28,6 +31,9 @@ pub extern "system" fn Java_dev_toad_msg_ref_OptionValue_bytes<'local>(mut env: 
                                                                        _: JClass<'local>,
                                                                        p: i64)
                                                                        -> jobject {
-  let val = unsafe { OptValue::ptr(p) };
+  let val = unsafe {
+    Shared::deref::<toad_msg::OptValue<Vec<u8>>>(p).as_ref()
+                                                   .unwrap()
+  };
   env.byte_array_from_slice(val.as_bytes()).unwrap().as_raw()
 }

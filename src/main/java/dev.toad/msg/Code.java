@@ -1,44 +1,52 @@
 package dev.toad.msg;
 
+import dev.toad.ffi.u8;
+
 public class Code {
 
-  private final int clazz;
-  private final int detail;
+  final u8 clazz;
+  final u8 detail;
 
-  public Code(int clazz, int detail) {
-    this.clazz = clazz;
-    this.detail = detail;
+  public Code(short clazz, short detail) {
+    this.clazz = new u8(clazz);
+    this.detail = new u8(detail);
+  }
+
+  public short codeClass() {
+    return this.clazz.shortValue();
+  }
+
+  public short codeDetail() {
+    return this.detail.shortValue();
   }
 
   @Override
   public String toString() {
     if (this.isRequest()) {
-      switch (this.detail) {
-        case 1:
-          return "GET";
-        case 2:
-          return "PUT";
-        case 3:
-          return "POST";
-        case 4:
-          return "DELETE";
-        default:
-          throw new Error();
-      }
+      return switch ((Short) this.detail.shortValue()) {
+        case 1 -> "GET";
+        case 2 -> "PUT";
+        case 3 -> "POST";
+        case Short other -> "DELETE";
+      };
     } else {
-      return String.format("%d.%d", this.clazz, this.detail);
+      return String.format(
+        "%d.%d",
+        this.clazz.shortValue(),
+        this.detail.shortValue()
+      );
     }
   }
 
   public boolean isRequest() {
-    return this.clazz == 0 && this.detail > 0;
+    return this.codeClass() == 0 && this.codeDetail() > 0;
   }
 
   public boolean isResponse() {
-    return this.clazz > 1;
+    return this.codeClass() > 1;
   }
 
   public boolean isEmpty() {
-    return this.clazz == 0 && this.detail == 0;
+    return this.codeClass() == 0 && this.codeDetail() == 0;
   }
 }

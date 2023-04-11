@@ -5,8 +5,13 @@ use std::ffi::c_void;
 use jni::JavaVM;
 use mem::SharedMemoryRegion;
 
-pub type Runtime = ::toad::std::Platform<::toad::std::dtls::N,
-                                         ::toad::step::runtime::std::Runtime<::toad::std::dtls::N>>;
+mod runtime {
+  use toad::std::{dtls, Platform};
+  use toad::step::runtime::std::Runtime as DefaultSteps;
+  pub type Runtime = Platform<dtls::N, DefaultSteps<dtls::N>>;
+}
+
+pub use runtime::Runtime;
 
 #[macro_export]
 macro_rules! package {

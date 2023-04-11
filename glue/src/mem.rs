@@ -23,20 +23,21 @@ pub trait SharedMemoryRegion: core::default::Default + core::fmt::Debug + Copy {
   /// Teardown
   unsafe fn dealloc();
 
-  unsafe fn shared_region(addr: i64) -> *mut u8;
+  unsafe fn shared_region() -> *mut u8;
 
   /// Coerce a `long` rep of a pointer to some data within the
   /// shared memory region.
-  unsafe fn deref<T>(shared_region_addr: i64, addr: i64) -> *mut T {
-    Self::shared_region(shared_region_addr).with_addr(addr as usize)
-                                           .cast::<T>()
+  unsafe fn deref<T>(addr: i64) -> *mut T {
+    Self::shared_region().with_addr(addr as usize).cast::<T>()
   }
 }
 
-static mut MEM: *mut Mem = core::ptr::null_mut();
+static mut MEM: Mem = Mem { runtime: None,
+                            messages: vec![],
+                            messages_lock: Mutex::new(()) };
 
 struct Mem {
-  runtime: crate::Runtime,
+  runtime: Option<crate::Runtime>,
   messages: Vec<Message>,
 
   /// Lock used by `alloc_message` and `dealloc_message` to ensure
@@ -52,39 +53,40 @@ struct Mem {
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GlobalStatic;
 impl SharedMemoryRegion for GlobalStatic {
-  unsafe fn dealloc() {
-    if !MEM.is_null() {
-      drop(Box::from_raw(MEM));
-    }
-  }
+  unsafe fn dealloc() {}
 
   unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
-    if MEM.is_null() {
-      MEM = Box::into_raw(Box::new(Mem { runtime: r(),
-                                         messages: vec![],
-                                         messages_lock: Mutex::new(()) }));
+    if MEM.runtime.is_none() {
+      MEM.runtime = Some(r());
     }
 
-    &mut (*MEM).runtime as _
+    MEM.runtime.as_mut().unwrap() as _
   }
 
   unsafe fn alloc_message(m: Message) -> *mut Message {
-    let _lock = (*MEM).messages_lock.lock();
-    (*MEM).messages.push(m);
-    &mut (*MEM).messages[(*MEM).messages.len() - 1] as _
+    let Mem { ref mut messages,
+              ref mut messages_lock,
+              .. } = &mut MEM;
+    let _lock = messages_lock.lock();
+    messages.push(m);
+    let len = messages.len();
+    &mut messages[len - 1] as _
   }
 
   unsafe fn dealloc_message(m: *mut Message) {
-    let _lock = (*MEM).messages_lock.lock();
-    let ix = m.offset_from((*MEM).messages.as_slice().as_ptr());
+    let Mem { messages,
+              messages_lock,
+              .. } = &mut MEM;
+    let _lock = messages_lock.lock();
+    let ix = m.offset_from(messages.as_slice().as_ptr());
     if ix.is_negative() {
       panic!()
     }
 
-    (*MEM).messages.remove(ix as usize);
+    messages.remove(ix as usize);
   }
 
-  unsafe fn shared_region(_: i64) -> *mut u8 {
-    MEM as _
+  unsafe fn shared_region() -> *mut u8 {
+    &mut MEM as *mut Mem as *mut u8
   }
 }

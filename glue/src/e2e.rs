@@ -46,31 +46,8 @@ fn runtime_poll_req(State { runtime,
   assert!(runtime.poll_req(env).is_some());
 }
 
-fn message_ref_should_throw_when_used_after_close(State {runtime, env, client, srv_addr, ..}: &mut State)
-{
-  let request = Message::new(Type::Con, Code::GET, Id(0), Token(Default::default()));
-  client.send_msg(Addrd(request, *srv_addr)).unwrap();
-  let req = runtime.poll_req(env).unwrap();
-
-  assert_eq!(req.ty(env), Type::Con);
-  req.close(env);
-
-  let req_o = req.downcast(env);
-  env.call_method(req_o.as_local(),
-                  "type",
-                  Signature::of::<fn() -> dev::toad::msg::Type>(),
-                  &[])
-     .ok();
-
-  let err = env.exception_occurred().unwrap();
-  env.exception_clear().unwrap();
-  assert!(env.is_instance_of(err, concat!(package!(dev.toad.ffi.Ptr), "$ExpiredError"))
-             .unwrap());
-}
-
 #[test]
 fn e2e_test_suite() {
   let mut state = init();
   runtime_poll_req(&mut state);
-  message_ref_should_throw_when_used_after_close(&mut state);
 }

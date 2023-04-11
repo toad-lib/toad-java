@@ -18,7 +18,7 @@ import java.util.Optional;
  */
 public class Ptr {
 
-  private static final HashSet<Long> validAddresses = new HashSet<>();
+  private static volatile HashSet<Long> validAddresses = new HashSet<>();
 
   protected final long addr;
   private final String clazz;
@@ -27,7 +27,7 @@ public class Ptr {
   /**
    * Associate a class instance with a native pointer
    */
-  public static Ptr register(Class c, long addr) {
+  public static synchronized Ptr register(Class c, long addr) {
     var trace = Thread.currentThread().getStackTrace();
     var traceStr = Arrays
       .asList(trace)
@@ -49,7 +49,7 @@ public class Ptr {
   /**
    * Invokes the cleaning action on the object associated with an address
    */
-  public void release() {
+  public synchronized void release() {
     Ptr.validAddresses.remove(this.addr);
   }
 
@@ -57,13 +57,13 @@ public class Ptr {
    * Throw `ExpiredError` if object has been leaked
    * outside of its appropriate context.
    */
-  public void ensureValid() {
+  public synchronized void ensureValid() {
     if (!Ptr.validAddresses.contains(this.addr)) {
       throw new ExpiredError(this);
     }
   }
 
-  public long addr() {
+  public synchronized long addr() {
     this.ensureValid();
     return this.addr;
   }

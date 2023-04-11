@@ -40,13 +40,11 @@ impl Toad {
   }
 
   fn poll_req_impl(e: &mut java::Env, addr: i64) -> java::util::Optional<msg::ref_::Message> {
-    match unsafe {
-            Shared::deref::<Runtime>(/* TODO */ 0, addr).as_ref()
-                                                        .unwrap()
-          }.poll_req()
-    {
+    match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.poll_req() {
       | Ok(req) => {
-        let mr = msg::ref_::Message::new(e, req.unwrap().into());
+        let msg_ptr: *mut toad_msg::alloc::Message =
+          unsafe { Shared::alloc_message(req.unwrap().into()) };
+        let mr = msg::ref_::Message::new(e, msg_ptr.addr() as i64);
         java::util::Optional::<msg::ref_::Message>::of(e, mr)
       },
       | Err(nb::Error::WouldBlock) => java::util::Optional::<msg::ref_::Message>::empty(e),

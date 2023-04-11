@@ -5,7 +5,7 @@ use toad_jni::java::{self, Object};
 use toad_msg::OptNumber;
 
 use super::OptValue;
-use crate::mem::SharedMemoryRegion;
+use crate::mem::{Shared, SharedMemoryRegion};
 
 pub struct Opt(pub java::lang::Object);
 
@@ -26,28 +26,31 @@ impl Opt {
     OptNumber(NUMBER.get(env, self) as u32)
   }
 
-  pub unsafe fn values_ptr<'a>(addr: i64) -> &'a mut Vec<toad_msg::OptValue<Vec<u8>>> {
-    crate::mem::Shared::deref::<Vec<toad_msg::OptValue<Vec<u8>>>>(/* TODO */ 0, addr).as_mut()
-                                                                                     .unwrap()
+  pub fn values(&self, env: &mut java::Env) -> Vec<OptValue> {
+    static VALUES: java::Method<Opt, fn() -> Vec<OptValue>> = java::Method::new("valueRefs");
+    VALUES.invoke(env, self)
   }
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_Option_number<'local>(mut env: JNIEnv<'local>,
-                                                               o: JObject<'local>,
-                                                               p: i64)
-                                                               -> i64 {
+pub extern "system" fn Java_dev_toad_msg_ref_Option_number<'local>(mut env: JNIEnv<'local>,
+                                                                   o: JObject<'local>,
+                                                                   p: i64)
+                                                                   -> i64 {
   java::lang::Object::from_local(&mut env, o).upcast_to::<Opt>(&mut env)
                                              .number(&mut env)
                                              .0 as i64
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_Option_values<'local>(mut e: JNIEnv<'local>,
-                                                               _: JClass<'local>,
-                                                               p: i64)
-                                                               -> jobject {
-  let o = &unsafe { Opt::values_ptr(p) };
+pub extern "system" fn Java_dev_toad_msg_ref_Option_values<'local>(mut e: JNIEnv<'local>,
+                                                                   _: JClass<'local>,
+                                                                   p: i64)
+                                                                   -> jobject {
+  let o = unsafe {
+    Shared::deref::<Vec<toad_msg::OptValue<Vec<u8>>>>(p).as_ref()
+                                                        .unwrap()
+  };
 
   let refs = o.iter()
               .map(|v| OptValue::new(&mut e, (&v.0 as *const Vec<u8>).addr() as i64))
