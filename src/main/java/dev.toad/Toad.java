@@ -1,12 +1,16 @@
 package dev.toad;
 
 import dev.toad.ffi.*;
+import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.channels.DatagramChannel;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Function;
 
-public final class Toad {
+public final class Toad implements AutoCloseable {
 
   static native Config defaultConfigImpl();
 
@@ -26,34 +30,36 @@ public final class Toad {
 
   final Ptr ptr;
   final Config config;
+  final DatagramChannel channel;
 
   static native long init(Config o);
 
-  static native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
+  native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
 
-  static native Optional<dev.toad.msg.ref.Message> pollResp(
+  native Optional<dev.toad.msg.ref.Message> pollResp(
     long ptr,
     dev.toad.msg.Token t,
     InetSocketAddress n
   );
 
   Optional<dev.toad.msg.ref.Message> pollReq() {
-    return Toad.pollReq(this.ptr.addr());
+    return this.pollReq(this.ptr.addr());
   }
 
   Optional<dev.toad.msg.ref.Message> pollResp(
     dev.toad.msg.Token regarding,
     InetSocketAddress from
   ) {
-    return Toad.pollResp(this.ptr.addr(), regarding, from);
+    return this.pollResp(this.ptr.addr(), regarding, from);
   }
 
-  public static BuilderRequiresBindToAddress builder() {
+  public static BuilderRequiresSocket builder() {
     return new Builder();
   }
 
-  Toad(Config o) {
+  Toad(Config o, DatagramChannel channel) {
     this.config = o;
+    this.channel = channel;
     this.ptr = Ptr.register(this.getClass(), this.init(o));
   }
 
@@ -61,22 +67,33 @@ public final class Toad {
     return this.config;
   }
 
-  public interface BuilderRequiresBindToAddress {
-    Toad.Builder port(short port);
-    Toad.Builder address(InetSocketAddress addr);
+  @Override
+  public void close() {
+    this.ptr.release();
   }
 
-  public static final class Builder implements BuilderRequiresBindToAddress {
+  public interface BuilderRequiresSocket {
+    Toad.Builder port(short port);
+    Toad.Builder address(InetSocketAddress addr);
+    Toad.Builder channel(DatagramChannel channel);
+  }
 
+  public static final class Builder implements BuilderRequiresSocket {
+
+    Optional<IOException> ioException = Optional.empty();
     Config.Msg.Builder msg = Config.Msg.builder();
-    Optional<InetSocketAddress> addr = Optional.empty();
+    Optional<DatagramChannel> channel = Optional.empty();
     u8 concurrency = Toad.defaultConfig().concurrency;
 
     Builder() {}
 
-    public Toad build() {
-      var cfg = new Config(this.addr.get(), this.concurrency, this.msg.build());
-      return new Toad(cfg);
+    public Toad build() throws IOException {
+      if (!this.ioException.isEmpty()) {
+        var cfg = new Config(this.concurrency, this.msg.build());
+        return new Toad(cfg, this.channel.get());
+      } else {
+        throw this.ioException.get();
+      }
     }
 
     public Builder msg(Function<Config.Msg.Builder, Config.Msg.Builder> f) {
@@ -89,7 +106,20 @@ public final class Toad {
     }
 
     public Builder address(InetSocketAddress addr) {
-      this.addr = Optional.of(addr);
+      try {
+        DatagramChannel channel = DatagramChannel.open(
+          java.net.StandardProtocolFamily.INET
+        );
+        channel.bind(addr);
+        return this.channel(channel);
+      } catch (java.io.IOException e) {
+        this.ioException = Optional.of(e);
+        return this;
+      }
+    }
+
+    public Builder channel(DatagramChannel channel) {
+      this.channel = Optional.of(channel);
       return this;
     }
 
@@ -101,12 +131,10 @@ public final class Toad {
 
   public static final class Config {
 
-    final InetSocketAddress addr;
     final u8 concurrency;
     final Msg msg;
 
-    Config(InetSocketAddress addr, u8 concurrency, Msg msg) {
-      this.addr = addr;
+    Config(u8 concurrency, Msg msg) {
       this.concurrency = concurrency;
       this.msg = msg;
     }
@@ -114,9 +142,7 @@ public final class Toad {
     @Override
     public boolean equals(Object other) {
       return switch (other) {
-        case Config o -> o.addr == this.addr &&
-        o.concurrency == this.concurrency &&
-        o.msg == this.msg;
+        case Config o -> o.concurrency == this.concurrency && o.msg == this.msg;
         default -> false;
       };
     }

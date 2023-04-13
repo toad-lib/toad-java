@@ -6,8 +6,27 @@ use jni::JavaVM;
 use mem::SharedMemoryRegion;
 
 mod runtime {
+  use std::collections::BTreeMap;
+
+  use toad::platform::Effect;
   use toad::std::{dtls, Platform};
   use toad::step::runtime::std::Runtime as DefaultSteps;
+  use toad_jni::java::nio::channels::PeekableDatagramChannel;
+  use toad_msg::{OptValue, OptNumber};
+
+  #[derive(Clone, Copy, Debug)]
+  pub struct PlatformTypes;
+
+  impl toad::platform::PlatformTypes for PlatformTypes {
+    type MessagePayload = Vec<u8>;
+    type MessageOptionBytes = Vec<u8>;
+    type MessageOptionMapOptionValues = Vec<OptValue<Vec<u8>>>;
+    type MessageOptions = BTreeMap<OptNumber, Vec<OptValue<Vec<u8>>>>;
+    type Clock = toad::std::Clock;
+    type Socket = PeekableDatagramChannel;
+    type Effects = Vec<Effect<Self>>;
+  }
+
   pub type Runtime = Platform<dtls::N, DefaultSteps<dtls::N>>;
 }
 

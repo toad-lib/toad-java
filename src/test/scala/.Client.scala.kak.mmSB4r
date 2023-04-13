@@ -1,0 +1,4 @@
+class Client extends munit.FunSuite {
+  test("client gets") {
+  }
+}

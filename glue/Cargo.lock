@@ -580,11 +580,15 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.8.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0bb1a31e7259c1338191283a47f7cb8ae7f51eb62455fd7e123d2be304f1894"
+checksum = "ef61b22c3478d481635b9eb67496d4dc18f22b8321961aca5dc2084f5253ccb7"
 dependencies = [
  "jni",
+ "nb",
+ "no-std-net",
+ "tinyvec",
+ "toad",
  "toad-array 0.5.0",
  "toad-len",
  "toad-stem",
