@@ -30,7 +30,7 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   static native Code code(long addr);
 
-  static native Type type(long addr);
+  static native Type typ(long addr);
 
   static native dev.toad.msg.ref.Option[] opts(long addr);
 
@@ -63,7 +63,7 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
   }
 
   public Type type() {
-    return this.type(this.ptr.addr());
+    return this.typ(this.ptr.addr());
   }
 
   public dev.toad.msg.ref.Option[] optionRefs() {

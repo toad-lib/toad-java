@@ -8,11 +8,16 @@ use mem::SharedMemoryRegion;
 mod runtime {
   use std::collections::BTreeMap;
 
-  use toad::platform::Effect;
-  use toad::std::{dtls, Platform};
-  use toad::step::runtime::std::Runtime as DefaultSteps;
+  use toad::config::Config;
+  use toad::net::Addrd;
+  use toad::platform::{Effect, Platform};
+  use toad::req::Req;
+  use toad::resp::Resp;
+  use toad::step::runtime::Runtime as DefaultSteps;
+  use toad_jni::java::io::IOException;
+  use toad_jni::java::lang::Throwable;
   use toad_jni::java::nio::channels::PeekableDatagramChannel;
-  use toad_msg::{OptValue, OptNumber};
+  use toad_msg::{OptNumber, OptValue};
 
   #[derive(Clone, Copy, Debug)]
   pub struct PlatformTypes;
@@ -27,7 +32,49 @@ mod runtime {
     type Effects = Vec<Effect<Self>>;
   }
 
-  pub type Runtime = Platform<dtls::N, DefaultSteps<dtls::N>>;
+  type Steps = DefaultSteps<PlatformTypes, naan::hkt::Vec, naan::hkt::BTreeMap>;
+
+  pub struct Runtime {
+    steps: Steps,
+    config: Config,
+    channel: PeekableDatagramChannel,
+    clock: toad::std::Clock,
+  }
+
+  impl Runtime {
+    pub fn new(config: Config, channel: PeekableDatagramChannel) -> Self {
+      Self { steps: Default::default(),
+             config,
+             channel,
+             clock: toad::std::Clock::new() }
+    }
+  }
+
+  impl Platform<Steps> for Runtime {
+    type Types = PlatformTypes;
+    type Error = IOException;
+
+    fn log(&self, level: log::Level, msg: toad::todo::String<1000>) -> Result<(), Self::Error> {
+      println!("[{}]: {}", level, msg.as_str());
+      Ok(())
+    }
+
+    fn config(&self) -> toad::config::Config {
+      self.config
+    }
+
+    fn steps(&self) -> &Steps {
+      &self.steps
+    }
+
+    fn socket(&self) -> &PeekableDatagramChannel {
+      &self.channel
+    }
+
+    fn clock(&self) -> &toad::std::Clock {
+      &self.clock
+    }
+  }
 }
 
 pub use runtime::Runtime;
@@ -59,21 +106,35 @@ pub mod e2e;
 #[cfg(test)]
 pub mod test {
   use std::net::{Ipv4Addr, SocketAddr};
+  use std::path::PathBuf;
+  use std::process::Command;
   use std::sync::Once;
 
   use jni::{InitArgsBuilder, JavaVM};
   use toad::config::Config;
   use toad::retry::Strategy;
   use toad::time::Millis;
-  use toad_jni::java;
+  use toad_jni::java::{self, Class, ResultExt};
 
   use crate::dev;
 
   pub fn init<'a>() -> java::Env<'a> {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
+      let repo_root = Command::new("git").arg("rev-parse")
+                                         .arg("--show-toplevel")
+                                         .output()
+                                         .unwrap();
+      assert!(repo_root.status.success());
+
+      let lib_path = String::from_utf8(repo_root.stdout).unwrap()
+                                                        .trim()
+                                                        .to_string();
+      let lib_path = PathBuf::from(lib_path).join("target/glue/debug");
+
       let jvm =
-        JavaVM::new(InitArgsBuilder::new().option("-Djava.library.path=/home/orion/src/toad-lib/toad-java/target/glue/debug/")
+        JavaVM::new(InitArgsBuilder::new().option(format!("-Djava.library.path={}",
+                                                          lib_path.to_string_lossy()))
                                           .option("-Djava.class.path=../target/scala-3.2.2/classes")
                                           .option("--enable-preview")
                                           .build()
@@ -81,8 +142,13 @@ pub mod test {
       toad_jni::global::init_with(jvm);
     });
 
-    toad_jni::global::jvm().attach_current_thread_permanently()
-                           .unwrap()
+    let mut env = toad_jni::global::jvm().attach_current_thread_permanently()
+                                         .unwrap();
+
+    env.call_static_method(crate::dev::toad::Toad::PATH, "loadNativeLib", "()V", &[])
+       .unwrap_java(&mut env);
+
+    env
   }
 
   #[test]
@@ -97,9 +163,7 @@ pub mod test {
     let mut e = init();
     let e = &mut e;
 
-    let r = dev::toad::Config::new(e,
-                                   Config::default(),
-                                   SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683));
+    let r = dev::toad::Config::new(e, Config::default());
     assert_eq!(r.to_toad(e), Config::default());
   }
 

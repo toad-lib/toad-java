@@ -119,10 +119,10 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_payload<'local>(mut env: ja
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_ref_Message_type<'local>(mut e: java::Env<'local>,
-                                                                  _: JClass<'local>,
-                                                                  addr: i64)
-                                                                  -> jobject {
+pub extern "system" fn Java_dev_toad_msg_ref_Message_typ<'local>(mut e: java::Env<'local>,
+                                                                 _: JClass<'local>,
+                                                                 addr: i64)
+                                                                 -> jobject {
   let msg = unsafe {
     Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
                                                    .unwrap()

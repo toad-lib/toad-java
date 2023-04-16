@@ -10,6 +10,7 @@ pub use retry_strategy::RetryStrategy;
 use toad::platform::Platform;
 use toad::retry::{Attempts, Strategy};
 use toad::time::Millis;
+use toad_jni::java::nio::channels::{DatagramChannel, PeekableDatagramChannel};
 use toad_jni::java::{self, Object};
 
 use crate::mem::{Shared, SharedMemoryRegion};
@@ -18,9 +19,10 @@ use crate::Runtime;
 pub struct Toad(java::lang::Object);
 
 impl Toad {
-  pub fn new(e: &mut java::Env, cfg: Config) -> Self {
-    static CTOR: java::Constructor<Toad, fn(Config)> = java::Constructor::new();
-    CTOR.invoke(e, cfg)
+  pub fn new(e: &mut java::Env, cfg: Config, channel: PeekableDatagramChannel) -> Self {
+    static CTOR: java::Constructor<Toad, fn(Config, PeekableDatagramChannel)> =
+      java::Constructor::new();
+    CTOR.invoke(e, cfg, channel)
   }
 
   pub fn poll_req(&self, e: &mut java::Env) -> Option<msg::ref_::Message> {
@@ -34,8 +36,8 @@ impl Toad {
     CONFIG.invoke(e, self)
   }
 
-  fn init_impl(e: &mut java::Env, cfg: Config) -> i64 {
-    let r = || Runtime::try_new(cfg.addr(e), cfg.to_toad(e)).unwrap();
+  fn init_impl(e: &mut java::Env, cfg: Config, channel: PeekableDatagramChannel) -> i64 {
+    let r = || Runtime::new(cfg.to_toad(e), channel);
     unsafe { crate::mem::Shared::init(r).addr() as i64 }
   }
 
@@ -49,7 +51,8 @@ impl Toad {
       },
       | Err(nb::Error::WouldBlock) => java::util::Optional::<msg::ref_::Message>::empty(e),
       | Err(nb::Error::Other(err)) => {
-        e.throw(format!("{:?}", err)).unwrap();
+        let err = err.downcast_ref(e).to_local(e);
+        e.throw(jni::objects::JThrowable::from(err)).unwrap();
         java::util::Optional::<msg::ref_::Message>::empty(e)
       },
     }
@@ -70,11 +73,6 @@ impl java::Class for Config {
 }
 
 impl Config {
-  pub fn addr(&self, e: &mut java::Env) -> SocketAddr {
-    static ADDRESS: java::Field<Config, java::net::InetSocketAddress> = java::Field::new("addr");
-    ADDRESS.get(e, self).to_std(e)
-  }
-
   pub fn concurrency(&self, e: &mut java::Env) -> u8 {
     static RUNTIME_CONFIG_CONCURRENCY: java::Field<Config, ffi::u8> =
       java::Field::new("concurrency");
@@ -86,9 +84,8 @@ impl Config {
     RUNTIME_CONFIG_MSG.invoke(e, self)
   }
 
-  pub fn new(e: &mut java::Env, c: toad::config::Config, addr: SocketAddr) -> Self {
-    static CTOR: java::Constructor<Config, fn(java::net::InetSocketAddress, ffi::u8, Msg)> =
-      java::Constructor::new();
+  pub fn new(e: &mut java::Env, c: toad::config::Config) -> Self {
+    static CTOR: java::Constructor<Config, fn(ffi::u8, Msg)> = java::Constructor::new();
 
     let con = Con::new(e,
                        c.msg.con.unacked_retry_strategy,
@@ -104,9 +101,7 @@ impl Config {
 
     let concurrency = ffi::u8::from_rust(e, c.max_concurrent_requests);
 
-    let address = java::net::InetSocketAddress::from_std(e, addr);
-
-    let jcfg = CTOR.invoke(e, address, concurrency, msg);
+    let jcfg = CTOR.invoke(e, concurrency, msg);
     jcfg
   }
 
@@ -264,20 +259,20 @@ impl Non {
 pub extern "system" fn Java_dev_toad_Toad_defaultConfigImpl<'local>(mut env: java::Env<'local>,
                                                                     _: JClass<'local>)
                                                                     -> jobject {
-  Config::new(&mut env,
-              toad::config::Config::default(),
-              SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 5683)).yield_to_java(&mut env)
+  Config::new(&mut env, toad::config::Config::default()).yield_to_java(&mut env)
 }
 
 #[no_mangle]
 pub extern "system" fn Java_dev_toad_Toad_init<'local>(mut e: java::Env<'local>,
                                                        _: JClass<'local>,
+                                                       channel: JObject<'local>,
                                                        cfg: JObject<'local>)
                                                        -> i64 {
   let e = &mut e;
   let cfg = java::lang::Object::from_local(e, cfg).upcast_to::<Config>(e);
+  let channel = java::lang::Object::from_local(e, channel).upcast_to::<DatagramChannel>(e);
 
-  Toad::init_impl(e, cfg)
+  Toad::init_impl(e, cfg, channel.peekable())
 }
 
 #[no_mangle]

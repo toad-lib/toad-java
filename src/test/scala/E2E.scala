@@ -3,6 +3,8 @@ import mock.java.nio.channels.Mock;
 
 class E2E extends munit.FunSuite {
   test("foo") {
-    val mock = Mock.Channel();
+    val mock = Mock.Channel()
+    val toad = Toad.builder.channel(mock).build
+    val req = Option.apply(toad.pollReq.get)
   }
 }

@@ -26,6 +26,14 @@ lazy val root = project
       "java.sources" -> baseDirectory.value.toGlob / "src" / "main" / "java" / ** / "*.java",
       "glue.sources" -> baseDirectory.value.toGlob / "glue" / "src" / ** / "*.rs"
     ),
+    path := Map(
+      "glue.base" -> (baseDirectory.value / "glue").toString,
+      "glue.target" -> (baseDirectory.value / "target" / "glue" / "debug").toString,
+      "java.classTarget" -> (baseDirectory.value / "target" / "scala-3.2.2" / "classes").toString
+    ),
+    Test / javaOptions ++= Seq(
+      "-Djava.library.path="++path.value("glue.target"),
+    ),
     Compile / doc / javacOptions ++= Seq(
       "--enable-preview",
       "--release",
@@ -37,11 +45,6 @@ lazy val root = project
       "20",
       "-Xlint:unchecked",
       "-Xlint:deprecation"
-    ),
-    path := Map(
-      "glue.base" -> (baseDirectory.value / "glue").toString,
-      "glue.target" -> (baseDirectory.value / "target" / "glue" / "debug").toString,
-      "java.classTarget" -> (baseDirectory.value / "target" / "scala-3.2.2" / "classes").toString
     ),
     ejectHeaders := {
       val files =

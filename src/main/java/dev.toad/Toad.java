@@ -25,6 +25,10 @@ public final class Toad implements AutoCloseable {
   }
 
   static {
+    Toad.loadNativeLib();
+  }
+
+  static void loadNativeLib() {
     System.loadLibrary("toad_java_glue");
   }
 
@@ -32,25 +36,25 @@ public final class Toad implements AutoCloseable {
   final Config config;
   final DatagramChannel channel;
 
-  static native long init(Config o);
+  static native long init(DatagramChannel chan, Config o);
 
-  native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
+  static native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
 
-  native Optional<dev.toad.msg.ref.Message> pollResp(
+  static native Optional<dev.toad.msg.ref.Message> pollResp(
     long ptr,
     dev.toad.msg.Token t,
     InetSocketAddress n
   );
 
-  Optional<dev.toad.msg.ref.Message> pollReq() {
-    return this.pollReq(this.ptr.addr());
+  public Optional<dev.toad.msg.ref.Message> pollReq() {
+    return Toad.pollReq(this.ptr.addr());
   }
 
-  Optional<dev.toad.msg.ref.Message> pollResp(
+  public Optional<dev.toad.msg.ref.Message> pollResp(
     dev.toad.msg.Token regarding,
     InetSocketAddress from
   ) {
-    return this.pollResp(this.ptr.addr(), regarding, from);
+    return Toad.pollResp(this.ptr.addr(), regarding, from);
   }
 
   public static BuilderRequiresSocket builder() {
@@ -60,7 +64,7 @@ public final class Toad implements AutoCloseable {
   Toad(Config o, DatagramChannel channel) {
     this.config = o;
     this.channel = channel;
-    this.ptr = Ptr.register(this.getClass(), this.init(o));
+    this.ptr = Ptr.register(this.getClass(), this.init(this.channel, o));
   }
 
   public Config config() {

@@ -570,6 +570,8 @@ name = "toad-java-glue"
 version = "0.1.0"
 dependencies = [
  "jni",
+ "log",
+ "naan",
  "nb",
  "no-std-net",
  "tinyvec",
@@ -580,10 +582,11 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.9.1"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef61b22c3478d481635b9eb67496d4dc18f22b8321961aca5dc2084f5253ccb7"
+checksum = "8e6f9b7ff8462ec97df69ef2bb01b485626fb43ce62a8fe33c6179f3537a9d38"
 dependencies = [
+ "embedded-time",
  "jni",
  "nb",
  "no-std-net",
@@ -591,6 +594,7 @@ dependencies = [
  "toad",
  "toad-array 0.5.0",
  "toad-len",
+ "toad-msg",
  "toad-stem",
 ]
 
