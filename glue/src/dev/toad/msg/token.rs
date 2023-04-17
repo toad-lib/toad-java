@@ -1,5 +1,7 @@
+use jni::objects::JClass;
+use jni::sys::jobject;
 use tinyvec::ArrayVec;
-use toad_jni::java;
+use toad_jni::java::{self, Object};
 
 use crate::dev::toad::ffi;
 
@@ -34,6 +36,13 @@ impl Token {
   pub fn to_toad(&self, e: &mut java::Env) -> toad_msg::Token {
     toad_msg::Token(self.to_bytes(e))
   }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_msg_Token_defaultToken<'local>(mut env: java::Env<'local>,
+                                                                    _: JClass<'local>)
+                                                                    -> jobject {
+  Token::from_toad(&mut env, toad_msg::Token(Default::default())).yield_to_java(&mut env)
 }
 
 #[cfg(test)]

@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use jni::objects::JClass;
 use jni::sys::jobject;
+use toad::net::Addrd;
+use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::{self, Object};
 
 use crate::dev::toad::msg::ref_::Opt;
@@ -21,29 +23,40 @@ impl Message {
     CTOR.invoke(env, msg_addr)
   }
 
-  pub fn to_toad(&self, env: &mut java::Env) -> toad_msg::alloc::Message {
-    toad_msg::alloc::Message { ty: self.ty(env),
-                               ver: toad_msg::Version::default(),
-                               code: self.code(env),
-                               id: self.id(env),
-                               token: self.token(env),
-                               payload: toad_msg::Payload(self.payload(env)),
-                               opts: self.options(env)
-                                         .into_iter()
-                                         .map(|opt| {
-                                           (opt.number(env),
-                                            opt.values(env)
-                                               .into_iter()
-                                               .map(|v| toad_msg::OptValue(v.bytes(env)))
-                                               .collect())
-                                         })
-                                         .collect::<BTreeMap<toad_msg::OptNumber,
-                                                  Vec<toad_msg::OptValue<Vec<u8>>>>>() }
+  pub fn to_toad(&self, env: &mut java::Env) -> Addrd<toad_msg::alloc::Message> {
+    let msg = toad_msg::alloc::Message { ty: self.ty(env),
+                                         ver: toad_msg::Version::default(),
+                                         code: self.code(env),
+                                         id: self.id(env),
+                                         token: self.token(env),
+                                         payload: toad_msg::Payload(self.payload(env)),
+                                         opts: self.options(env)
+                                                   .into_iter()
+                                                   .map(|opt| {
+                                                     (opt.number(env),
+                                                      opt.values(env)
+                                                         .into_iter()
+                                                         .map(|v| toad_msg::OptValue(v.bytes(env)))
+                                                         .collect())
+                                                   })
+                                                   .collect::<BTreeMap<toad_msg::OptNumber,
+                                                            Vec<toad_msg::OptValue<Vec<u8>>>>>() };
+    Addrd(msg,
+          self.addr(env)
+              .expect("java should have made sure the address was present"))
   }
 
   pub fn close(&self, env: &mut java::Env) {
     static CLOSE: java::Method<Message, fn()> = java::Method::new("close");
     CLOSE.invoke(env, self)
+  }
+
+  pub fn addr(&self, env: &mut java::Env) -> Option<no_std_net::SocketAddr> {
+    static SOURCE: java::Method<Message, fn() -> java::util::Optional<InetSocketAddress>> =
+      java::Method::new("addr");
+    SOURCE.invoke(env, self)
+          .to_option(env)
+          .map(|a| a.to_no_std(env))
   }
 
   pub fn ty(&self, env: &mut java::Env) -> toad_msg::Type {
@@ -87,10 +100,10 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_id<'local>(mut env: java::E
                                                                 -> jobject {
   let e = &mut env;
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  Id::from_toad(e, msg.id).yield_to_java(e)
+  Id::from_toad(e, msg.data().id).yield_to_java(e)
 }
 
 #[no_mangle]
@@ -100,10 +113,10 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_token<'local>(mut env: java
                                                                    -> jobject {
   let e = &mut env;
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  Token::from_toad(e, msg.token).yield_to_java(e)
+  Token::from_toad(e, msg.data().token).yield_to_java(e)
 }
 
 #[no_mangle]
@@ -112,10 +125,12 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_payload<'local>(mut env: ja
                                                                      addr: i64)
                                                                      -> jobject {
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  env.byte_array_from_slice(&msg.payload.0).unwrap().as_raw()
+  env.byte_array_from_slice(&msg.data().payload.0)
+     .unwrap()
+     .as_raw()
 }
 
 #[no_mangle]
@@ -124,10 +139,10 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_typ<'local>(mut e: java::En
                                                                  addr: i64)
                                                                  -> jobject {
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  Type::new(&mut e, msg.ty).yield_to_java(&mut e)
+  Type::new(&mut e, msg.data().ty).yield_to_java(&mut e)
 }
 
 #[no_mangle]
@@ -136,10 +151,23 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_code<'local>(mut e: java::E
                                                                   addr: i64)
                                                                   -> jobject {
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  Code::from_toad(&mut e, msg.code).yield_to_java(&mut e)
+  Code::from_toad(&mut e, msg.data().code).yield_to_java(&mut e)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_msg_ref_Message_addr<'local>(mut e: java::Env<'local>,
+                                                                  _: JClass<'local>,
+                                                                  addr: i64)
+                                                                  -> jobject {
+  let msg = unsafe {
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
+  };
+
+  InetSocketAddress::from_no_std(&mut e, msg.addr()).yield_to_java(&mut e)
 }
 
 #[no_mangle]
@@ -148,10 +176,10 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_opts<'local>(mut e: java::E
                                                                   addr: i64)
                                                                   -> jobject {
   let msg = unsafe {
-    Shared::deref::<toad_msg::alloc::Message>(addr).as_ref()
-                                                   .unwrap()
+    Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr).as_ref()
+                                                          .unwrap()
   };
-  let opts = &msg.opts;
+  let opts = &msg.data().opts;
 
   let refs = opts.into_iter()
                  .map(|(n, v)| Opt::new(&mut e, v as *const _ as i64, n.0.into()))
@@ -182,7 +210,8 @@ mod tests {
     toad_msg.set_path("foo/bar/baz").ok();
     toad_msg.set_payload(Payload(r#"{"id": 123, "stuff": ["abc"]}"#.as_bytes().to_vec()));
 
-    let ptr: *mut toad_msg::alloc::Message = Box::into_raw(Box::new(toad_msg));
+    let ptr: *mut Addrd<toad_msg::alloc::Message> =
+      Box::into_raw(Box::new(Addrd(toad_msg, "127.0.0.1:1234".parse().unwrap())));
 
     let msg = Message::new(e, ptr.addr() as i64);
 
@@ -204,7 +233,8 @@ mod tests {
     toad_msg.set_path("foo/bar/baz").ok();
     toad_msg.set_payload(Payload(r#"{"id": 123, "stuff": ["abc"]}"#.as_bytes().to_vec()));
 
-    let ptr: *mut toad_msg::alloc::Message = Box::into_raw(Box::new(toad_msg));
+    let ptr: *mut Addrd<toad_msg::alloc::Message> =
+      Box::into_raw(Box::new(Addrd(toad_msg, "127.0.0.1:1234".parse().unwrap())));
 
     let msg = Message::new(e, ptr.addr() as i64);
 

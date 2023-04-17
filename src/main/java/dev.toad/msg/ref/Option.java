@@ -29,7 +29,7 @@ public class Option implements dev.toad.msg.Option, AutoCloseable {
     return Arrays.asList(this.values(this.ptr.addr()));
   }
 
-  public dev.toad.msg.Option clone() {
+  public dev.toad.msg.owned.Option toOwned() {
     return new dev.toad.msg.owned.Option(this);
   }
 

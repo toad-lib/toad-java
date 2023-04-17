@@ -1,4 +1,6 @@
-use toad_jni::java;
+use jni::objects::JClass;
+use jni::sys::jobject;
+use toad_jni::java::{self, Object};
 
 use crate::dev::toad::ffi;
 
@@ -41,4 +43,11 @@ mod tests {
     let toadj = Id::from_toad(e, toad);
     assert_eq!(toadj.to_toad(e), toad);
   }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_msg_Id_defaultId<'local>(mut env: java::Env<'local>,
+                                                              _: JClass<'local>)
+                                                              -> jobject {
+  Id::from_toad(&mut env, toad_msg::Id(0)).yield_to_java(&mut env)
 }

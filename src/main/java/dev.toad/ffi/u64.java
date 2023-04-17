@@ -4,6 +4,8 @@ import java.math.BigInteger;
 
 public final class u64 {
 
+  public native byte[] toBytes();
+
   public static final BigInteger MAX = BigInteger.TWO
     .pow(64)
     .subtract(BigInteger.ONE);

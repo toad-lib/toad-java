@@ -2,9 +2,10 @@ package dev.toad.msg;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Optional;
 
 public interface Message {
-  public InetSocketAddress source();
+  public Optional<InetSocketAddress> addr();
 
   public Id id();
 
@@ -19,4 +20,8 @@ public interface Message {
   public byte[] payloadBytes();
 
   public String payloadString();
+
+  public dev.toad.msg.owned.Message toOwned();
+
+  public byte[] toBytes();
 }

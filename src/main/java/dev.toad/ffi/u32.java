@@ -2,6 +2,8 @@ package dev.toad.ffi;
 
 public final class u32 {
 
+  public native byte[] toBytes();
+
   public static final long MAX = (long) (Math.pow(2, 32) - 1);
   private final long l;
 

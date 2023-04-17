@@ -2,6 +2,8 @@ package dev.toad.ffi;
 
 public final class u16 {
 
+  public native byte[] toBytes();
+
   public static final int MAX = (int) (Math.pow(2, 16) - 1);
   private final int l;
 

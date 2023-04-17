@@ -5,28 +5,31 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class Message implements dev.toad.msg.Message {
 
-  final InetSocketAddress source;
+  public native byte[] toBytes();
+
+  final Optional<InetSocketAddress> addr;
   final Id id;
   final Token token;
   final byte[] payload;
   final Code code;
   final Type type;
-  final List<dev.toad.msg.Option> opts;
+  final ArrayList<dev.toad.msg.owned.Option> opts;
 
   public Message(
-    InetSocketAddress source,
+    Optional<InetSocketAddress> addr,
     Type type,
     Code code,
     Id id,
     Token token,
     byte[] payload,
-    List<dev.toad.msg.Option> opts
+    ArrayList<dev.toad.msg.owned.Option> opts
   ) {
-    this.source = source;
+    this.addr = addr;
     this.id = id;
     this.token = token;
     this.payload = payload;
@@ -37,7 +40,7 @@ public class Message implements dev.toad.msg.Message {
 
   public Message(dev.toad.msg.ref.Message ref) {
     this(
-      ref.source(),
+      ref.addr(),
       ref.type(),
       ref.code(),
       ref.id(),
@@ -46,13 +49,17 @@ public class Message implements dev.toad.msg.Message {
       Arrays
         .asList(ref.optionRefs())
         .stream()
-        .map(dev.toad.msg.ref.Option::clone)
-        .collect(Collectors.toList())
+        .map(dev.toad.msg.ref.Option::toOwned)
+        .collect(Collectors.toCollection(() -> new ArrayList<>()))
     );
   }
 
-  public InetSocketAddress source() {
-    return this.source;
+  public Message toOwned() {
+    return this;
+  }
+
+  public Optional<InetSocketAddress> addr() {
+    return this.addr;
   }
 
   public Id id() {
@@ -72,7 +79,7 @@ public class Message implements dev.toad.msg.Message {
   }
 
   public List<dev.toad.msg.Option> options() {
-    return this.opts;
+    return List.copyOf(this.opts);
   }
 
   public byte[] payloadBytes() {

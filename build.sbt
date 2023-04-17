@@ -32,7 +32,7 @@ lazy val root = project
       "java.classTarget" -> (baseDirectory.value / "target" / "scala-3.2.2" / "classes").toString
     ),
     Test / javaOptions ++= Seq(
-      "-Djava.library.path="++path.value("glue.target"),
+      "-Djava.library.path=" ++ path.value("glue.target")
     ),
     Compile / doc / javacOptions ++= Seq(
       "--enable-preview",

@@ -9,7 +9,7 @@ impl java::Class for Code {
 
 impl Code {
   pub fn from_toad(e: &mut java::Env, code: toad_msg::Code) -> Self {
-    static CTOR: java::Constructor<Code, fn(i16, i16)> = java::Constructor::new();
+    static CTOR: java::Constructor<Code, fn(i32, i32)> = java::Constructor::new();
     CTOR.invoke(e, code.class.into(), code.detail.into())
   }
 

@@ -97,7 +97,6 @@ public class Mock {
           return ent.getKey();
         }
       }
-
       return null;
     }
 

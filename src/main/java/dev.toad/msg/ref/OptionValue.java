@@ -21,7 +21,7 @@ public final class OptionValue
     return new String(this.bytes(this.ptr.addr()));
   }
 
-  public dev.toad.msg.OptionValue clone() {
+  public dev.toad.msg.owned.OptionValue toOwned() {
     return new dev.toad.msg.owned.OptionValue(this);
   }
 

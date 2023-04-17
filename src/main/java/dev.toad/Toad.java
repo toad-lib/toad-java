@@ -1,6 +1,7 @@
 package dev.toad;
 
 import dev.toad.ffi.*;
+import dev.toad.msg.*;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -28,7 +29,7 @@ public final class Toad implements AutoCloseable {
     Toad.loadNativeLib();
   }
 
-  static void loadNativeLib() {
+  public static void loadNativeLib() {
     System.loadLibrary("toad_java_glue");
   }
 
@@ -38,6 +39,11 @@ public final class Toad implements AutoCloseable {
 
   static native long init(DatagramChannel chan, Config o);
 
+  static native Optional<IdAndToken> sendMessage(
+    long ptr,
+    dev.toad.msg.owned.Message msg
+  );
+
   static native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
 
   static native Optional<dev.toad.msg.ref.Message> pollResp(
@@ -46,12 +52,16 @@ public final class Toad implements AutoCloseable {
     InetSocketAddress n
   );
 
+  public Optional<IdAndToken> sendMessage(Message msg) {
+    return Toad.sendMessage(this.ptr.addr(), msg.toOwned());
+  }
+
   public Optional<dev.toad.msg.ref.Message> pollReq() {
     return Toad.pollReq(this.ptr.addr());
   }
 
   public Optional<dev.toad.msg.ref.Message> pollResp(
-    dev.toad.msg.Token regarding,
+    Token regarding,
     InetSocketAddress from
   ) {
     return Toad.pollResp(this.ptr.addr(), regarding, from);
@@ -76,6 +86,17 @@ public final class Toad implements AutoCloseable {
     this.ptr.release();
   }
 
+  public static final class IdAndToken {
+
+    public final Id id;
+    public final Token token;
+
+    public IdAndToken(Id id, Token token) {
+      this.id = id;
+      this.token = token;
+    }
+  }
+
   public interface BuilderRequiresSocket {
     Toad.Builder port(short port);
     Toad.Builder address(InetSocketAddress addr);
@@ -91,10 +112,11 @@ public final class Toad implements AutoCloseable {
 
     Builder() {}
 
-    public Toad build() throws IOException {
-      if (!this.ioException.isEmpty()) {
+    public Client buildClient() throws IOException {
+      if (this.ioException.isEmpty()) {
         var cfg = new Config(this.concurrency, this.msg.build());
-        return new Toad(cfg, this.channel.get());
+        var toad = new Toad(cfg, this.channel.get());
+        return new Client(toad);
       } else {
         throw this.ioException.get();
       }

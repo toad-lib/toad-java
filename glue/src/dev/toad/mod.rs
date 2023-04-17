@@ -7,9 +7,11 @@ use std::net::{Ipv4Addr, SocketAddr};
 use jni::objects::{JClass, JObject};
 use jni::sys::jobject;
 pub use retry_strategy::RetryStrategy;
+use toad::net::Addrd;
 use toad::platform::Platform;
 use toad::retry::{Attempts, Strategy};
 use toad::time::Millis;
+use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::nio::channels::{DatagramChannel, PeekableDatagramChannel};
 use toad_jni::java::{self, Object};
 
@@ -44,8 +46,7 @@ impl Toad {
   fn poll_req_impl(e: &mut java::Env, addr: i64) -> java::util::Optional<msg::ref_::Message> {
     match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.poll_req() {
       | Ok(req) => {
-        let msg_ptr: *mut toad_msg::alloc::Message =
-          unsafe { Shared::alloc_message(req.unwrap().into()) };
+        let msg_ptr = unsafe { Shared::alloc_message(req.map(Into::into)) };
         let mr = msg::ref_::Message::new(e, msg_ptr.addr() as i64);
         java::util::Optional::<msg::ref_::Message>::of(e, mr)
       },
@@ -57,12 +58,67 @@ impl Toad {
       },
     }
   }
+
+  fn poll_resp_impl(e: &mut java::Env,
+                    addr: i64,
+                    token: msg::Token,
+                    sock: InetSocketAddress)
+                    -> java::util::Optional<msg::ref_::Message> {
+    match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.poll_resp(token.to_toad(e),
+                                                                                sock.to_no_std(e))
+    {
+      | Ok(resp) => {
+        let msg_ptr = unsafe { Shared::alloc_message(resp.map(Into::into)) };
+        let mr = msg::ref_::Message::new(e, msg_ptr.addr() as i64);
+        java::util::Optional::<msg::ref_::Message>::of(e, mr)
+      },
+      | Err(nb::Error::WouldBlock) => java::util::Optional::empty(e),
+      | Err(nb::Error::Other(err)) => {
+        let err = err.downcast_ref(e).to_local(e);
+        e.throw(jni::objects::JThrowable::from(err)).unwrap();
+        java::util::Optional::<msg::ref_::Message>::empty(e)
+      },
+    }
+  }
+
+  fn send_message_impl(e: &mut java::Env,
+                       addr: i64,
+                       msg: msg::owned::Message)
+                       -> java::util::Optional<IdAndToken> {
+    match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.send_msg(Addrd(msg.to_toad(e), msg.addr(e).unwrap().to_no_std(e))) {
+      | Ok((id, token)) => {
+        let out = IdAndToken::new(e, id, token);
+        java::util::Optional::of(e, out)
+            },
+      | Err(nb::Error::WouldBlock) => java::util::Optional::empty(e),
+      | Err(nb::Error::Other(err)) => {
+        let err = err.downcast_ref(e).to_local(e);
+        e.throw(jni::objects::JThrowable::from(err)).unwrap();
+        java::util::Optional::empty(e)
+      },
+    }
+  }
 }
 
 java::object_newtype!(Toad);
 
 impl java::Class for Toad {
   const PATH: &'static str = package!(dev.toad.Toad);
+}
+
+pub struct IdAndToken(java::lang::Object);
+
+java::object_newtype!(IdAndToken);
+impl java::Class for IdAndToken {
+  const PATH: &'static str = concat!(package!(dev.toad.Toad), "$IdAndToken");
+}
+
+impl IdAndToken {
+  pub fn new(e: &mut java::Env, id: toad_msg::Id, token: toad_msg::Token) -> Self {
+    static CTOR: java::Constructor<IdAndToken, fn(msg::Id, msg::Token)> = java::Constructor::new();
+    let (id, token) = (msg::Id::from_toad(e, id), msg::Token::from_toad(e, token));
+    CTOR.invoke(e, id, token)
+  }
 }
 
 pub struct Config(java::lang::Object);
@@ -276,10 +332,34 @@ pub extern "system" fn Java_dev_toad_Toad_init<'local>(mut e: java::Env<'local>,
 }
 
 #[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_sendMessage<'local>(mut e: java::Env<'local>,
+                                                              _: JClass<'local>,
+                                                              addr: i64,
+                                                              msg: JObject<'local>)
+                                                              -> jobject {
+  let e = &mut e;
+  let msg: msg::owned::Message = java::lang::Object::from_local(e, msg).upcast_to(e);
+  Toad::send_message_impl(e, addr, msg).yield_to_java(e)
+}
+
+#[no_mangle]
 pub extern "system" fn Java_dev_toad_Toad_pollReq<'local>(mut e: java::Env<'local>,
                                                           _: JClass<'local>,
                                                           addr: i64)
                                                           -> jobject {
   let e = &mut e;
   Toad::poll_req_impl(e, addr).yield_to_java(e)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_pollResp<'local>(mut e: java::Env<'local>,
+                                                           _: JClass<'local>,
+                                                           addr: i64,
+                                                           token: JObject<'local>,
+                                                           sock: JObject<'local>)
+                                                           -> jobject {
+  let e = &mut e;
+  let token = java::lang::Object::from_local(e, token).upcast_to::<msg::Token>(e);
+  let sock = java::lang::Object::from_local(e, sock).upcast_to::<InetSocketAddress>(e);
+  Toad::poll_resp_impl(e, addr, token, sock).yield_to_java(e)
 }

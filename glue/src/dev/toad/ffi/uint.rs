@@ -1,6 +1,8 @@
 use core::primitive as rust;
 
-use toad_jni::java;
+use jni::objects::JObject;
+use jni::sys::{jbyteArray, jobject};
+use toad_jni::java::{self, Object};
 
 #[allow(non_camel_case_types)]
 pub struct u64(java::lang::Object);
@@ -83,4 +85,39 @@ impl u8 {
     static CTOR: java::Constructor<u8, fn(i16)> = java::Constructor::new();
     CTOR.invoke(e, u.into())
   }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_ffi_u8_toByte<'local>(mut env: java::Env<'local>,
+                                                           u: JObject<'local>)
+                                                           -> i8 {
+  let u = java::lang::Object::from_local(&mut env, u).upcast_to::<u8>(&mut env);
+  i8::from_be_bytes([u.to_rust(&mut env).to_be()])
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_ffi_u16_toBytes<'local>(mut env: java::Env<'local>,
+                                                             u: JObject<'local>)
+                                                             -> jbyteArray {
+  let u = java::lang::Object::from_local(&mut env, u).upcast_to::<u16>(&mut env);
+  let bs = u.to_rust(&mut env).to_be_bytes();
+  env.byte_array_from_slice(&bs).unwrap().as_raw()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_ffi_u32_toBytes<'local>(mut env: java::Env<'local>,
+                                                             u: JObject<'local>)
+                                                             -> jbyteArray {
+  let u = java::lang::Object::from_local(&mut env, u).upcast_to::<u32>(&mut env);
+  let bs = u.to_rust(&mut env).to_be_bytes();
+  env.byte_array_from_slice(&bs).unwrap().as_raw()
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_ffi_u64_toBytes<'local>(mut env: java::Env<'local>,
+                                                             u: JObject<'local>)
+                                                             -> jbyteArray {
+  let u = java::lang::Object::from_local(&mut env, u).upcast_to::<u64>(&mut env);
+  let bs = u.to_rust(&mut env).to_be_bytes();
+  env.byte_array_from_slice(&bs).unwrap().as_raw()
 }

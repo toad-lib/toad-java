@@ -9,14 +9,12 @@ mod runtime {
   use std::collections::BTreeMap;
 
   use toad::config::Config;
-  use toad::net::Addrd;
   use toad::platform::{Effect, Platform};
-  use toad::req::Req;
-  use toad::resp::Resp;
   use toad::step::runtime::Runtime as DefaultSteps;
   use toad_jni::java::io::IOException;
-  use toad_jni::java::lang::Throwable;
+  use toad_jni::java::lang::System;
   use toad_jni::java::nio::channels::PeekableDatagramChannel;
+  use toad_jni::java::{self, Object};
   use toad_msg::{OptNumber, OptValue};
 
   #[derive(Clone, Copy, Debug)]
@@ -55,7 +53,10 @@ mod runtime {
     type Error = IOException;
 
     fn log(&self, level: log::Level, msg: toad::todo::String<1000>) -> Result<(), Self::Error> {
-      println!("[{}]: {}", level, msg.as_str());
+      let mut e = java::env();
+      let e = &mut e;
+      let (level, msg) = (level.to_string().downcast(e), msg.as_str().to_string().downcast(e));
+      System::out(e).printf(e, "[%s]: %s", vec![level, msg]);
       Ok(())
     }
 
@@ -121,26 +122,26 @@ pub mod test {
   pub fn init<'a>() -> java::Env<'a> {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-      let repo_root = Command::new("git").arg("rev-parse")
-                                         .arg("--show-toplevel")
-                                         .output()
-                                         .unwrap();
-      assert!(repo_root.status.success());
+          let repo_root = Command::new("git").arg("rev-parse")
+                                             .arg("--show-toplevel")
+                                             .output()
+                                             .unwrap();
+          assert!(repo_root.status.success());
 
-      let lib_path = String::from_utf8(repo_root.stdout).unwrap()
-                                                        .trim()
-                                                        .to_string();
-      let lib_path = PathBuf::from(lib_path).join("target/glue/debug");
+          let lib_path = String::from_utf8(repo_root.stdout).unwrap()
+                                                            .trim()
+                                                            .to_string();
+          let lib_path = PathBuf::from(lib_path).join("target/glue/debug");
 
-      let jvm =
+          let jvm =
         JavaVM::new(InitArgsBuilder::new().option(format!("-Djava.library.path={}",
                                                           lib_path.to_string_lossy()))
                                           .option("-Djava.class.path=../target/scala-3.2.2/classes")
                                           .option("--enable-preview")
                                           .build()
                                           .unwrap()).unwrap();
-      toad_jni::global::init_with(jvm);
-    });
+          toad_jni::global::init_with(jvm);
+        });
 
     let mut env = toad_jni::global::jvm().attach_current_thread_permanently()
                                          .unwrap();

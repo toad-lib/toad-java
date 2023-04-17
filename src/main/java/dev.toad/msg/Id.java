@@ -4,6 +4,8 @@ import dev.toad.ffi.u16;
 
 public final class Id {
 
+  public static native Id defaultId();
+
   final u16 id;
 
   public Id(int id) {

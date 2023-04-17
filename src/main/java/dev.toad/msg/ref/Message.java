@@ -18,9 +18,9 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   Ptr ptr;
 
-  Optional<InetSocketAddress> source = Optional.empty();
+  Optional<InetSocketAddress> addr = Optional.empty();
 
-  static native InetSocketAddress source(long addr);
+  static native InetSocketAddress addr(long addr);
 
   static native Id id(long addr);
 
@@ -34,20 +34,22 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   static native dev.toad.msg.ref.Option[] opts(long addr);
 
+  static native byte[] toBytes(long addr);
+
   Message(long addr) {
     this.ptr = Ptr.register(this.getClass(), addr);
   }
 
-  public dev.toad.msg.Message clone() {
+  public dev.toad.msg.owned.Message toOwned() {
     return new dev.toad.msg.owned.Message(this);
   }
 
-  public InetSocketAddress source() {
-    if (this.source.isEmpty()) {
-      this.source = Optional.of(this.source(this.ptr.addr()));
+  public Optional<InetSocketAddress> addr() {
+    if (this.addr.isEmpty()) {
+      this.addr = Optional.of(this.addr(this.ptr.addr()));
     }
 
-    return this.source.get();
+    return this.addr;
   }
 
   public Id id() {
@@ -80,6 +82,10 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   public String payloadString() {
     return new String(this.payload(this.ptr.addr()));
+  }
+
+  public byte[] toBytes() {
+    return this.toBytes(this.ptr.addr());
   }
 
   @Override

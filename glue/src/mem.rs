@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use toad::net::Addrd;
 use toad_msg::alloc::Message;
 
 /// global [`RuntimeAllocator`] implementation
@@ -15,10 +16,10 @@ pub trait SharedMemoryRegion: core::default::Default + core::fmt::Debug + Copy {
 
   /// Pass ownership of a [`Message`] to the shared memory region,
   /// yielding a stable pointer to this message.
-  unsafe fn alloc_message(m: Message) -> *mut Message;
+  unsafe fn alloc_message(m: Addrd<Message>) -> *mut Addrd<Message>;
 
   /// Delete a message from the shared memory region.
-  unsafe fn dealloc_message(m: *mut Message);
+  unsafe fn dealloc_message(m: *mut Addrd<Message>);
 
   /// Teardown
   unsafe fn dealloc();
@@ -38,7 +39,7 @@ static mut MEM: Mem = Mem { runtime: None,
 
 struct Mem {
   runtime: Option<crate::Runtime>,
-  messages: Vec<Message>,
+  messages: Vec<Addrd<Message>>,
 
   /// Lock used by `alloc_message` and `dealloc_message` to ensure
   /// they are run serially.
@@ -63,7 +64,7 @@ impl SharedMemoryRegion for GlobalStatic {
     MEM.runtime.as_mut().unwrap() as _
   }
 
-  unsafe fn alloc_message(m: Message) -> *mut Message {
+  unsafe fn alloc_message(m: Addrd<Message>) -> *mut Addrd<Message> {
     let Mem { ref mut messages,
               ref mut messages_lock,
               .. } = &mut MEM;
@@ -73,7 +74,7 @@ impl SharedMemoryRegion for GlobalStatic {
     &mut messages[len - 1] as _
   }
 
-  unsafe fn dealloc_message(m: *mut Message) {
+  unsafe fn dealloc_message(m: *mut Addrd<Message>) {
     let Mem { messages,
               messages_lock,
               .. } = &mut MEM;
