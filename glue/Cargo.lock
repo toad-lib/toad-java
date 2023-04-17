@@ -504,9 +504,9 @@ checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
 
 [[package]]
 name = "toad"
-version = "0.17.3"
+version = "0.17.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d4000090e5f6d1380e1a4bfb9a5428019cb7a4374b3663792ef7965384968fc"
+checksum = "4eeb47a7e30efe198acc91ee919d420b478d9874c9362611d61f2ad9a3d27848"
 dependencies = [
  "embedded-time",
  "log",
@@ -582,12 +582,13 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.11.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "125f835c70283545b5840dff39d9bd132324d929041d4eaec1ed9378f08ac166"
+checksum = "93571aa0e40745d04eff12007637f0ed01ea1afbe112b1eca19a11fe30f638f6"
 dependencies = [
  "embedded-time",
  "jni",
+ "log",
  "nb",
  "no-std-net",
  "tinyvec",

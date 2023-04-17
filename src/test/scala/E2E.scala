@@ -4,6 +4,8 @@ import dev.toad.msg.option.ContentFormat
 import dev.toad.msg.option.Accept
 import mock.java.nio.channels.Mock
 import java.net.InetSocketAddress
+import java.util.logging.Logger
+import java.util.logging.Level
 import java.util.ArrayList
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
@@ -14,23 +16,12 @@ class E2E extends munit.FunSuite {
 
     val mock = Mock.Channel()
 
-    val ack = dev.toad.msg.build.Message
-      .builder()
-      .addr(InetSocketAddress("127.0.0.1", 1111))
-      .`type`(Type.ACK)
-      .code(Code.EMPTY)
-      .id(Id(2))
-      .token(Token(Array(1)))
-      .option(ContentFormat.TEXT)
-      .payload("foobar")
-      .build
-
     val resp = dev.toad.msg.build.Message
       .builder()
       .addr(InetSocketAddress("127.0.0.1", 1111))
-      .`type`(Type.NON)
+      .`type`(Type.ACK)
       .code(Code.OK_CONTENT)
-      .id(Id(3))
+      .id(Id(2))
       .token(Token(Array(1)))
       .option(ContentFormat.TEXT)
       .payload("foobar")
@@ -46,7 +37,7 @@ class E2E extends munit.FunSuite {
       .option(Accept.TEXT)
       .build
 
-    val client = Toad.builder.channel(mock).buildClient
+    val client = Toad.builder.channel(mock).logLevel(Level.INFO).buildClient
     val respFuture = client.send(req)
 
     var bufs = ArrayList[ByteBuffer]()

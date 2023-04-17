@@ -108,13 +108,14 @@ public final class Toad implements AutoCloseable {
     Optional<IOException> ioException = Optional.empty();
     Config.Msg.Builder msg = Config.Msg.builder();
     Optional<DatagramChannel> channel = Optional.empty();
+    Optional<java.util.logging.Level> logLevel = Optional.empty();
     u8 concurrency = Toad.defaultConfig().concurrency;
 
     Builder() {}
 
     public Client buildClient() throws IOException {
       if (this.ioException.isEmpty()) {
-        var cfg = new Config(this.concurrency, this.msg.build());
+        var cfg = new Config(this.logLevel, this.concurrency, this.msg.build());
         var toad = new Toad(cfg, this.channel.get());
         return new Client(toad);
       } else {
@@ -129,6 +130,11 @@ public final class Toad implements AutoCloseable {
 
     public Builder port(short port) {
       return this.address(new InetSocketAddress(port));
+    }
+
+    public Builder logLevel(java.util.logging.Level level) {
+      this.logLevel = Optional.of(level);
+      return this;
     }
 
     public Builder address(InetSocketAddress addr) {
@@ -157,10 +163,16 @@ public final class Toad implements AutoCloseable {
 
   public static final class Config {
 
+    final Optional<java.util.logging.Level> logLevel;
     final u8 concurrency;
     final Msg msg;
 
-    Config(u8 concurrency, Msg msg) {
+    Config(
+      Optional<java.util.logging.Level> logLevel,
+      u8 concurrency,
+      Msg msg
+    ) {
+      this.logLevel = logLevel;
       this.concurrency = concurrency;
       this.msg = msg;
     }
@@ -171,6 +183,10 @@ public final class Toad implements AutoCloseable {
         case Config o -> o.concurrency == this.concurrency && o.msg == this.msg;
         default -> false;
       };
+    }
+
+    public java.util.logging.Level logLevel() {
+      return this.logLevel.orElse(java.util.logging.Level.INFO);
     }
 
     public InetSocketAddress addr() {

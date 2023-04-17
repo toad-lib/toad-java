@@ -13,6 +13,7 @@ use toad::retry::{Attempts, Strategy};
 use toad::time::Millis;
 use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::nio::channels::{DatagramChannel, PeekableDatagramChannel};
+use toad_jni::java::util::Optional;
 use toad_jni::java::{self, Object};
 
 use crate::mem::{Shared, SharedMemoryRegion};
@@ -39,7 +40,7 @@ impl Toad {
   }
 
   fn init_impl(e: &mut java::Env, cfg: Config, channel: PeekableDatagramChannel) -> i64 {
-    let r = || Runtime::new(cfg.to_toad(e), channel);
+    let r = || Runtime::new(&mut java::env(), cfg.log_level(e), cfg.to_toad(e), channel);
     unsafe { crate::mem::Shared::init(r).addr() as i64 }
   }
 
@@ -135,13 +136,20 @@ impl Config {
     RUNTIME_CONFIG_CONCURRENCY.get(e, self).to_rust(e)
   }
 
+  pub fn log_level(&self, e: &mut java::Env) -> java::util::logging::Level {
+    static LOG_LEVEL: java::Method<Config, fn() -> java::util::logging::Level> =
+      java::Method::new("logLevel");
+    LOG_LEVEL.invoke(e, self)
+  }
+
   pub fn msg(&self, e: &mut java::Env) -> Msg {
     static RUNTIME_CONFIG_MSG: java::Method<Config, fn() -> Msg> = java::Method::new("msg");
     RUNTIME_CONFIG_MSG.invoke(e, self)
   }
 
   pub fn new(e: &mut java::Env, c: toad::config::Config) -> Self {
-    static CTOR: java::Constructor<Config, fn(ffi::u8, Msg)> = java::Constructor::new();
+    static CTOR: java::Constructor<Config, fn(Optional<java::util::logging::Level>, ffi::u8, Msg)> =
+      java::Constructor::new();
 
     let con = Con::new(e,
                        c.msg.con.unacked_retry_strategy,
@@ -157,7 +165,8 @@ impl Config {
 
     let concurrency = ffi::u8::from_rust(e, c.max_concurrent_requests);
 
-    let jcfg = CTOR.invoke(e, concurrency, msg);
+    let log_level: Optional<java::util::logging::Level> = Optional::empty(e);
+    let jcfg = CTOR.invoke(e, log_level, concurrency, msg);
     jcfg
   }
 

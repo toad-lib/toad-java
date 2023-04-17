@@ -14,7 +14,8 @@ mod runtime {
   use toad_jni::java::io::IOException;
   use toad_jni::java::lang::System;
   use toad_jni::java::nio::channels::PeekableDatagramChannel;
-  use toad_jni::java::{self, Object};
+  use toad_jni::java::util::logging::{ConsoleHandler, Level, Logger};
+  use toad_jni::java::{self, Object, ResultExt, Signature};
   use toad_msg::{OptNumber, OptValue};
 
   #[derive(Clone, Copy, Debug)]
@@ -37,14 +38,28 @@ mod runtime {
     config: Config,
     channel: PeekableDatagramChannel,
     clock: toad::std::Clock,
+    logger: Logger,
   }
 
   impl Runtime {
-    pub fn new(config: Config, channel: PeekableDatagramChannel) -> Self {
+    pub fn new(e: &mut java::Env,
+               log_level: Level,
+               config: Config,
+               channel: PeekableDatagramChannel)
+               -> Self {
+      let handler = ConsoleHandler::new(e);
+      handler.set_level(e, log_level);
+
+      let logger = Logger::get_logger(e, "dev.toad");
+      logger.use_parent_handlers(e, false);
+      logger.add_handler(e, handler.to_handler());
+      logger.set_level(e, log_level);
+
       Self { steps: Default::default(),
              config,
              channel,
-             clock: toad::std::Clock::new() }
+             clock: toad::std::Clock::new(),
+             logger }
     }
   }
 
@@ -54,9 +69,8 @@ mod runtime {
 
     fn log(&self, level: log::Level, msg: toad::todo::String<1000>) -> Result<(), Self::Error> {
       let mut e = java::env();
-      let e = &mut e;
-      let (level, msg) = (level.to_string().downcast(e), msg.as_str().to_string().downcast(e));
-      System::out(e).printf(e, "[%s]: %s", vec![level, msg]);
+      self.logger
+          .log(&mut e, Level::from_log_level(level), msg.as_str());
       Ok(())
     }
 
