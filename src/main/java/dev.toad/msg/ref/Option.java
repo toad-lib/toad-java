@@ -10,7 +10,7 @@ public class Option implements dev.toad.msg.Option, AutoCloseable {
   Ptr ptr;
   final long number;
 
-  native dev.toad.msg.ref.OptionValue[] values(long ptr);
+  public native dev.toad.msg.ref.OptionValue[] valueRefs();
 
   Option(long addr, long number) {
     this.ptr = Ptr.register(this.getClass(), addr);
@@ -21,12 +21,8 @@ public class Option implements dev.toad.msg.Option, AutoCloseable {
     return this.number;
   }
 
-  public dev.toad.msg.ref.OptionValue[] valueRefs() {
-    return this.values(this.ptr.addr());
-  }
-
   public List<dev.toad.msg.OptionValue> values() {
-    return Arrays.asList(this.values(this.ptr.addr()));
+    return Arrays.asList(this.valueRefs());
   }
 
   public dev.toad.msg.owned.Option toOwned() {

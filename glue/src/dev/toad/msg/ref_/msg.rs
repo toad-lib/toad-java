@@ -5,7 +5,7 @@ use jni::sys::jobject;
 use toad::net::Addrd;
 use toad_jni::java::lang::Throwable;
 use toad_jni::java::net::InetSocketAddress;
-use toad_jni::java::{self, Object};
+use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
 
 use crate::dev::toad::ffi::Ptr;
 use crate::dev::toad::msg::ref_::Opt;
@@ -30,9 +30,9 @@ impl Message {
     PTR.get(e, self)
   }
 
-  pub fn toad_ref(&self,
-                  e: &mut java::Env)
-                  -> Result<&'static Addrd<toad_msg::alloc::Message>, Throwable> {
+  pub fn try_deref(&self,
+                   e: &mut java::Env)
+                   -> Result<&'static Addrd<toad_msg::alloc::Message>, Throwable> {
     self.ptr(e).addr(e).map(|addr| unsafe {
                          Shared::deref::<Addrd<toad_msg::alloc::Message>>(addr.inner(e)).as_ref()
                                                                                         .unwrap()
@@ -115,13 +115,9 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_id<'local>(mut env: java::E
                                                                 -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
-                                        .map(|msg| Id::from_toad(e, msg.data().id).yield_to_java(e))
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .try_deref(e)
+                                        .map(|msg| Id::from_toad(e, msg.data().id))
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -130,15 +126,9 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_token<'local>(mut env: java
                                                                    -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
-                                        .map(|msg| {
-                                          Token::from_toad(e, msg.data().token).yield_to_java(e)
-                                        })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .try_deref(e)
+                                        .map(|msg| Token::from_toad(e, msg.data().token))
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -147,17 +137,12 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_payloadBytes<'local>(mut en
                                                                           -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
+                                        .try_deref(e)
                                         .map(|msg| {
-                                          e.byte_array_from_slice(&msg.data().payload.0)
-                                           .unwrap()
-                                           .as_raw()
+                                          java::lang::Object::from_local(e, e.byte_array_from_slice(&msg.data().payload.0)
+                                           .unwrap())
                                         })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -166,15 +151,9 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_type<'local>(mut env: java:
                                                                   -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
-                                        .map(|msg| {
-                                          Type::from_toad(e, msg.data().ty).yield_to_java(e)
-                                        })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .try_deref(e)
+                                        .map(|msg| Type::from_toad(e, msg.data().ty))
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -183,15 +162,9 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_code<'local>(mut env: java:
                                                                   -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
-                                        .map(|msg| {
-                                          Code::from_toad(e, msg.data().code).yield_to_java(e)
-                                        })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .try_deref(e)
+                                        .map(|msg| Code::from_toad(e, msg.data().code))
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -200,16 +173,12 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_addr<'local>(mut env: java:
                                                                   -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
+                                        .try_deref(e)
                                         .map(|msg| {
                                           let addr = InetSocketAddress::from_no_std(e, msg.addr());
-                                          java::util::Optional::of(e, addr).yield_to_java(e)
+                                          java::util::Optional::of(e, addr)
                                         })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .yield_to_java_or_throw(e)
 }
 
 #[no_mangle]
@@ -218,24 +187,17 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_optionRefs<'local>(mut env:
                                                                         -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
-                                        .toad_ref(e)
+                                        .try_deref(e)
                                         .map(|msg| {
                                           let opts = &msg.data().opts;
 
-                                          let refs =
-                                            opts.into_iter()
-                                                .map(|(n, v)| {
-                                                  Opt::new(e, v as *const _ as i64, n.0.into())
-                                                })
-                                                .collect::<Vec<_>>();
-
-                                          refs.yield_to_java(e)
+                                          opts.into_iter()
+                                              .map(|(n, v)| {
+                                                Opt::new(e, v as *const _ as i64, n.0.into())
+                                              })
+                                              .collect::<Vec<_>>()
                                         })
-                                        .map_err(|err| {
-                                          let err = JThrowable::from(err.downcast(e).to_local(e));
-                                          e.throw(err).unwrap()
-                                        })
-                                        .unwrap_or(*JObject::null())
+                                        .yield_to_java_or_throw(e)
 }
 
 #[cfg(test)]

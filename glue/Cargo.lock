@@ -582,9 +582,9 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93571aa0e40745d04eff12007637f0ed01ea1afbe112b1eca19a11fe30f638f6"
+checksum = "c0bdcbce1dfef5ac76668490d12944aec41816999b2bd6ab889a5afbcbf13eb5"
 dependencies = [
  "embedded-time",
  "jni",
