@@ -18,23 +18,21 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   Ptr ptr;
 
-  Optional<InetSocketAddress> addr = Optional.empty();
+  public native Optional<InetSocketAddress> addr();
 
-  static native InetSocketAddress addr(long addr);
+  public native Id id();
 
-  static native Id id(long addr);
+  public native Token token();
 
-  static native Token token(long addr);
+  public native byte[] payloadBytes();
 
-  static native byte[] payload(long addr);
+  public native Code code();
 
-  static native Code code(long addr);
+  public native Type type();
 
-  static native Type typ(long addr);
+  public native dev.toad.msg.ref.Option[] optionRefs();
 
-  static native dev.toad.msg.ref.Option[] opts(long addr);
-
-  static native byte[] toBytes(long addr);
+  public native byte[] toBytes();
 
   Message(long addr) {
     this.ptr = Ptr.register(this.getClass(), addr);
@@ -44,48 +42,12 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
     return new dev.toad.msg.owned.Message(this);
   }
 
-  public Optional<InetSocketAddress> addr() {
-    if (this.addr.isEmpty()) {
-      this.addr = Optional.of(this.addr(this.ptr.addr()));
-    }
-
-    return this.addr;
-  }
-
-  public Id id() {
-    return this.id(this.ptr.addr());
-  }
-
-  public Token token() {
-    return this.token(this.ptr.addr());
-  }
-
-  public Code code() {
-    return this.code(this.ptr.addr());
-  }
-
-  public Type type() {
-    return this.typ(this.ptr.addr());
-  }
-
-  public dev.toad.msg.ref.Option[] optionRefs() {
-    return this.opts(this.ptr.addr());
-  }
-
   public List<dev.toad.msg.Option> options() {
-    return Arrays.asList(this.opts(this.ptr.addr()));
-  }
-
-  public byte[] payloadBytes() {
-    return this.payload(this.ptr.addr());
+    return Arrays.asList(this.optionRefs());
   }
 
   public String payloadString() {
-    return new String(this.payload(this.ptr.addr()));
-  }
-
-  public byte[] toBytes() {
-    return this.toBytes(this.ptr.addr());
+    return new String(this.payloadBytes());
   }
 
   @Override

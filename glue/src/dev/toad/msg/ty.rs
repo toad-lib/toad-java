@@ -8,7 +8,7 @@ impl java::Class for Type {
 }
 
 impl Type {
-  pub fn new(env: &mut java::Env, ty: toad_msg::Type) -> Self {
+  pub fn from_toad(env: &mut java::Env, ty: toad_msg::Type) -> Self {
     static FROM_STRING: java::StaticMethod<Type, fn(String) -> Type> =
       java::StaticMethod::new("fromString");
 
