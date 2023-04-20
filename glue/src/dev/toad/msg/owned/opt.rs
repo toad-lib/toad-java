@@ -12,6 +12,11 @@ impl java::Class for Opt {
 }
 
 impl Opt {
+  pub fn new(e: &mut java::Env, num: i64, vals: ArrayList<OptValue>) -> Self {
+    static CTOR: java::Constructor<Opt, fn(i64, ArrayList<OptValue>)> = java::Constructor::new();
+    CTOR.invoke(e, num, vals)
+  }
+
   pub fn number(&self, e: &mut java::Env) -> OptNumber {
     static NUMBER: java::Field<Opt, crate::dev::toad::ffi::u32> = java::Field::new("number");
     OptNumber(NUMBER.get(e, self).to_rust(e))

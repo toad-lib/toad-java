@@ -17,7 +17,10 @@ impl Payload {
                      .collect())
   }
 
-  pub fn new_content_format(e: &mut java::Env, bytes: Vec<u8>, f: ContentFormat) -> Self {
+  pub fn new_content_format(e: &mut java::Env,
+                            bytes: impl IntoIterator<Item = u8>,
+                            f: ContentFormat)
+                            -> Self {
     static CTOR: java::Constructor<Payload, fn(ContentFormat, Vec<i8>)> = java::Constructor::new();
     CTOR.invoke(e,
                 f,

@@ -5,10 +5,13 @@ use jni::sys::jobject;
 use toad::net::Addrd;
 use toad_jni::java::lang::Throwable;
 use toad_jni::java::net::InetSocketAddress;
-use toad_jni::java::{self, ResultYieldToJavaOrThrow};
+use toad_jni::java::util::ArrayList;
+use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
+use toad_msg::no_repeat::CONTENT_FORMAT;
 use toad_msg::MessageOptions;
 
 use crate::dev::toad::ffi::Ptr;
+use crate::dev::toad::msg::option::ContentFormat;
 use crate::dev::toad::msg::ref_::Opt;
 use crate::dev::toad::msg::{Code, Id, Payload, Token, Type};
 use crate::mem::{Shared, SharedMemoryRegion};
@@ -137,8 +140,15 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_payload<'local>(mut env: ja
                                         .map(|msg| {
                                           msg.data()
                                              .content_format()
-                                             .map(|_f| {
-                                               Payload::new(e, msg.data().payload.0.iter().copied())
+                                             .map(|f| {
+                                               use crate::dev::toad::msg::owned::{Opt, OptValue};
+
+                                               let arr = ArrayList::<OptValue>::new(e);
+                                               let val = OptValue::new(e, f.bytes());
+                                               arr.append(e, val);
+                                               let o = Opt::new(e, CONTENT_FORMAT.0.into(), arr).downcast(e);
+                                               let f = ContentFormat::new(e, crate::dev::toad::msg::Option(o));
+                                               Payload::new_content_format(e, msg.data().payload.0.iter().copied(), f)
                                              })
                                              .unwrap_or_else(|| {
                                                Payload::new(e, msg.data().payload.0.iter().copied())
@@ -204,7 +214,7 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_optionRefs<'local>(mut env:
 
 #[cfg(test)]
 mod tests {
-  use toad_jni::java::Signature;
+  use toad_jni::java::{Object, Signature};
   use toad_msg::{MessageOptions, Payload};
 
   use super::*;

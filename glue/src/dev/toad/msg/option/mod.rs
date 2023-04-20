@@ -1,7 +1,5 @@
 use toad_jni::java;
 
-use super::owned::Opt;
-
 pub struct ContentFormat(java::lang::Object);
 java::object_newtype!(ContentFormat);
 impl java::Class for ContentFormat {
@@ -9,8 +7,8 @@ impl java::Class for ContentFormat {
 }
 
 impl ContentFormat {
-  pub fn new(e: &mut java::Env, o: Opt) -> Self {
-    static CTOR: java::Constructor<ContentFormat, fn(Opt)> = java::Constructor::new();
+  pub fn new(e: &mut java::Env, o: super::Option) -> Self {
+    static CTOR: java::Constructor<ContentFormat, fn(super::Option)> = java::Constructor::new();
     CTOR.invoke(e, o)
   }
 }
