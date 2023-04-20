@@ -3,8 +3,6 @@ use jni::sys::jobject;
 use tinyvec::ArrayVec;
 use toad_jni::java::{self, Object};
 
-use crate::dev::toad::ffi;
-
 pub struct Token(java::lang::Object);
 java::object_newtype!(Token);
 impl java::Class for Token {

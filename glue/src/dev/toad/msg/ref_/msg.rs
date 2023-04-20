@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use jni::objects::{JClass, JObject, JThrowable};
+use jni::objects::JObject;
 use jni::sys::jobject;
 use toad::net::Addrd;
 use toad_jni::java::lang::Throwable;
 use toad_jni::java::net::InetSocketAddress;
-use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
+use toad_jni::java::{self, ResultYieldToJavaOrThrow};
 use toad_msg::MessageOptions;
 
 use crate::dev::toad::ffi::Ptr;
@@ -137,7 +137,7 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_payload<'local>(mut env: ja
                                         .map(|msg| {
                                           msg.data()
                                              .content_format()
-                                             .map(|f| {
+                                             .map(|_f| {
                                                Payload::new(e, msg.data().payload.0.iter().copied())
                                              })
                                              .unwrap_or_else(|| {

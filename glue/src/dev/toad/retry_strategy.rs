@@ -1,6 +1,6 @@
 use toad::retry::Strategy;
 use toad::time::Millis;
-use toad_jni::java::{self, Object};
+use toad_jni::java;
 
 use crate::dev::toad::ffi;
 

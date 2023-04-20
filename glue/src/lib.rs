@@ -12,10 +12,9 @@ mod runtime {
   use toad::platform::{Effect, Platform};
   use toad::step::runtime::Runtime as DefaultSteps;
   use toad_jni::java::io::IOException;
-  use toad_jni::java::lang::System;
   use toad_jni::java::nio::channels::PeekableDatagramChannel;
   use toad_jni::java::util::logging::{ConsoleHandler, Level, Logger};
-  use toad_jni::java::{self, Object, ResultExt, Signature};
+  use toad_jni::java::{self};
   use toad_msg::{OptNumber, OptValue};
 
   #[derive(Clone, Copy, Debug)]
@@ -120,7 +119,7 @@ pub mod e2e;
 
 #[cfg(test)]
 pub mod test {
-  use std::net::{Ipv4Addr, SocketAddr};
+
   use std::path::PathBuf;
   use std::process::Command;
   use std::sync::Once;

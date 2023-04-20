@@ -4,13 +4,12 @@ use no_std_net::SocketAddr;
 use toad::config::Config;
 use toad::net::Addrd;
 use toad::platform::Platform;
-use toad_jni::java::net::StandardProtocolFamily::INet;
-use toad_jni::java::nio::channels::{DatagramChannel, PeekableDatagramChannel};
-use toad_jni::java::{self, Object, Signature};
+use toad_jni::java::nio::channels::PeekableDatagramChannel;
+use toad_jni::java::{self};
 use toad_msg::alloc::Message;
 use toad_msg::{Code, Id, Token, Type};
 
-use crate::{dev, Runtime};
+use crate::dev;
 
 type RustRuntime =
   toad::std::Platform<toad::std::dtls::N, toad::step::runtime::std::Runtime<toad::std::dtls::N>>;

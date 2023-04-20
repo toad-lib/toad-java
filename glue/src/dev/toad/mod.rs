@@ -2,7 +2,6 @@ pub mod ffi;
 pub mod msg;
 
 mod retry_strategy;
-use std::net::{Ipv4Addr, SocketAddr};
 
 use jni::objects::{JClass, JObject};
 use jni::sys::jobject;

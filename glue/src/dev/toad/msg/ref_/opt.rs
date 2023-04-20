@@ -1,8 +1,8 @@
-use jni::objects::{JClass, JObject};
+use jni::objects::JObject;
 use jni::sys::jobject;
 use jni::JNIEnv;
 use toad_jni::java::lang::Throwable;
-use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
+use toad_jni::java::{self, ResultYieldToJavaOrThrow};
 use toad_msg::OptNumber;
 
 use super::OptValue;

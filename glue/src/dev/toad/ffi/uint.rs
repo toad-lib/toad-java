@@ -1,8 +1,8 @@
 use core::primitive as rust;
 
 use jni::objects::JObject;
-use jni::sys::{jbyteArray, jobject};
-use toad_jni::java::{self, Object};
+use jni::sys::jbyteArray;
+use toad_jni::java;
 
 #[allow(non_camel_case_types)]
 pub struct u64(java::lang::Object);

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use jni::objects::JObject;
-use jni::sys::{jbyteArray, jobject};
+use jni::sys::jbyteArray;
 use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::util::ArrayList;
 use toad_jni::java::{self};

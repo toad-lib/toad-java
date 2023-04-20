@@ -1,4 +1,4 @@
-use jni::objects::{JClass, JObject};
+use jni::objects::JObject;
 use jni::sys::jobject;
 use toad_jni::java::lang::Throwable;
 use toad_jni::java::{self, ResultYieldToJavaOrThrow};
