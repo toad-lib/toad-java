@@ -10,6 +10,8 @@ public sealed class ContentFormat implements Option permits Accept {
 
   final u16 value;
 
+  public static final long number = 12;
+
   ContentFormat(int value) {
     this.value = new u16(value);
   }
@@ -30,7 +32,7 @@ public sealed class ContentFormat implements Option permits Accept {
   }
 
   public long number() {
-    return 12;
+    return ContentFormat.number;
   }
 
   public int value() {

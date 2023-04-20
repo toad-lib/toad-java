@@ -8,6 +8,8 @@ import java.util.List;
 
 public final class Accept extends ContentFormat implements Option {
 
+  public static final long number = 17;
+
   public static final Accept TEXT = new Accept(ContentFormat.TEXT);
   public static final Accept LINK_FORMAT = new Accept(
     ContentFormat.LINK_FORMAT
@@ -21,6 +23,10 @@ public final class Accept extends ContentFormat implements Option {
 
   Accept(int value) {
     super(value);
+  }
+
+  public long number() {
+    return Accept.number;
   }
 
   public Accept(ContentFormat format) {

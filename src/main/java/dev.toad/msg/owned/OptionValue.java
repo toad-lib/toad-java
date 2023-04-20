@@ -1,8 +1,14 @@
 package dev.toad.msg.owned;
 
+import java.nio.charset.StandardCharsets;
+
 public class OptionValue implements dev.toad.msg.OptionValue {
 
   public final byte[] bytes;
+
+  public OptionValue(String str) {
+    this.bytes = str.getBytes(StandardCharsets.UTF_8);
+  }
 
   public OptionValue(byte[] bytes) {
     this.bytes = bytes;

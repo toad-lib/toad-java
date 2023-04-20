@@ -4,6 +4,13 @@ import dev.toad.msg.Code;
 import dev.toad.msg.Id;
 import dev.toad.msg.Token;
 import dev.toad.msg.Type;
+import dev.toad.msg.option.Path;
+import dev.toad.msg.option.Query;
+import dev.toad.msg.option.Host;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.net.URI;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +35,18 @@ public final class Message
 
   public static MessageNeeds.Destination builder() {
     return new Message();
+  }
+
+  public MessageNeeds.Type uri(String uriStr) throws URISyntaxException, UnknownHostException {
+    var uri = new URI(uriStr);
+    var addr = InetAddress.getByName(uri.getHost());
+    var port = uri.getPort() > 0 ? uri.getPort() : uri.getScheme().equals("coaps") ? 5684 : 5683;
+    this.addr = Optional.of(new InetSocketAddress(addr, port));
+
+    return this
+      .option(new Host(uri.getHost()))
+      .option(new Query(uri.getQuery()))
+      .option(new Path(uri.getPath()));
   }
 
   public MessageNeeds.Type addr(InetSocketAddress addr) {
