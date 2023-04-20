@@ -24,7 +24,7 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   public native Token token();
 
-  public native byte[] payloadBytes();
+  public native Payload payload();
 
   public native Code code();
 
@@ -44,10 +44,6 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
 
   public List<dev.toad.msg.Option> options() {
     return Arrays.asList(this.optionRefs());
-  }
-
-  public String payloadString() {
-    return new String(this.payloadBytes());
   }
 
   @Override

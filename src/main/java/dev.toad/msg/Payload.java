@@ -9,6 +9,11 @@ public final class Payload {
   final byte[] bytes;
   final Optional<ContentFormat> contentFormat;
 
+  public Payload() {
+    this.contentFormat = Optional.empty();
+    this.bytes = new byte[] {};
+  }
+
   public Payload(byte[] bytes) {
     this.contentFormat = Optional.empty();
     this.bytes = bytes;

@@ -15,7 +15,7 @@ public class Message implements dev.toad.msg.Message {
   final Optional<InetSocketAddress> addr;
   final Id id;
   final Token token;
-  final byte[] payload;
+  final Payload payload;
   final Code code;
   final Type type;
   final ArrayList<dev.toad.msg.owned.Option> opts;
@@ -26,7 +26,7 @@ public class Message implements dev.toad.msg.Message {
     Code code,
     Id id,
     Token token,
-    byte[] payload,
+    Payload payload,
     ArrayList<dev.toad.msg.owned.Option> opts
   ) {
     this.addr = addr;
@@ -45,7 +45,7 @@ public class Message implements dev.toad.msg.Message {
       ref.code(),
       ref.id(),
       ref.token(),
-      ref.payloadBytes().clone(),
+      ref.payload(),
       Arrays
         .asList(ref.optionRefs())
         .stream()
@@ -82,11 +82,7 @@ public class Message implements dev.toad.msg.Message {
     return List.copyOf(this.opts);
   }
 
-  public byte[] payloadBytes() {
+  public Payload payload() {
     return this.payload;
-  }
-
-  public String payloadString() {
-    return new String(this.payload);
   }
 }

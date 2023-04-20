@@ -110,7 +110,7 @@ public final class Message
       this.code.get(),
       this.id.orElse(Id.defaultId()),
       this.token.orElse(Token.defaultToken()),
-      this.payload.map(p -> p.bytes()).orElse(new byte[] {}),
+      this.payload.orElse(new Payload()),
       this.options.entrySet()
         .stream()
         .map(ent -> new dev.toad.msg.owned.Option(ent.getKey(), ent.getValue()))

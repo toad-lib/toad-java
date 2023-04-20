@@ -8,7 +8,7 @@ use toad_jni::java::{self};
 use toad_msg::{OptNumber, TryIntoBytes};
 
 use crate::dev::toad::msg::owned::Opt;
-use crate::dev::toad::msg::{Code, Id, Token, Type};
+use crate::dev::toad::msg::{Code, Id, Payload, Token, Type};
 
 pub struct Message(java::lang::Object);
 
@@ -43,12 +43,9 @@ impl Message {
     OPTIONS.get(e, self).into_iter().collect()
   }
 
-  pub fn payload(&self, e: &mut java::Env) -> Vec<u8> {
-    static PAYLOAD: java::Field<Message, Vec<i8>> = java::Field::new("payload");
+  pub fn payload(&self, e: &mut java::Env) -> Payload {
+    static PAYLOAD: java::Field<Message, Payload> = java::Field::new("payload");
     PAYLOAD.get(e, self)
-           .into_iter()
-           .map(|i| u8::from_be_bytes(i.to_be_bytes()))
-           .collect()
   }
 
   pub fn addr(&self, e: &mut java::Env) -> Option<InetSocketAddress> {
@@ -74,7 +71,7 @@ impl Message {
                                     .collect())
                               })
                               .collect::<BTreeMap<OptNumber, Vec<toad_msg::OptValue<Vec<u8>>>>>(),
-                        payload: toad_msg::Payload(self.payload(e)) }
+                        payload: toad_msg::Payload(self.payload(e).bytes(e)) }
   }
 }
 

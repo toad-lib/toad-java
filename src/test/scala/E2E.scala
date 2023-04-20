@@ -45,6 +45,6 @@ class E2E extends munit.FunSuite {
 
     val respActual = respFuture.get(1, TimeUnit.SECONDS)
 
-    assertEquals(resp.payloadBytes().toSeq, respActual.payloadBytes().toSeq)
+    assertEquals(resp.payload.bytes.toSeq, respActual.payload.bytes.toSeq)
   }
 }

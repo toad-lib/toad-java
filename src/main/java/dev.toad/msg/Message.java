@@ -26,9 +26,7 @@ public interface Message {
 
   public List<Option> options();
 
-  public byte[] payloadBytes();
-
-  public String payloadString();
+  public Payload payload();
 
   public dev.toad.msg.owned.Message toOwned();
 

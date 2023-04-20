@@ -6,10 +6,11 @@ use toad::net::Addrd;
 use toad_jni::java::lang::Throwable;
 use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
+use toad_msg::MessageOptions;
 
 use crate::dev::toad::ffi::Ptr;
 use crate::dev::toad::msg::ref_::Opt;
-use crate::dev::toad::msg::{Code, Id, Token, Type};
+use crate::dev::toad::msg::{Code, Id, Payload, Token, Type};
 use crate::mem::{Shared, SharedMemoryRegion};
 
 pub struct Message(java::lang::Object);
@@ -20,9 +21,9 @@ impl java::Class for Message {
 }
 
 impl Message {
-  pub fn new(env: &mut java::Env, msg_addr: i64) -> Self {
+  pub fn new(e: &mut java::Env, msg_addr: i64) -> Self {
     static CTOR: java::Constructor<Message, fn(i64)> = java::Constructor::new();
-    CTOR.invoke(env, msg_addr)
+    CTOR.invoke(e, msg_addr)
   }
 
   pub fn ptr(&self, e: &mut java::Env) -> Ptr {
@@ -39,73 +40,68 @@ impl Message {
                        })
   }
 
-  pub fn to_toad(&self, env: &mut java::Env) -> Addrd<toad_msg::alloc::Message> {
-    let msg = toad_msg::alloc::Message { ty: self.ty(env),
+  pub fn to_toad(&self, e: &mut java::Env) -> Addrd<toad_msg::alloc::Message> {
+    let msg = toad_msg::alloc::Message { ty: self.ty(e),
                                          ver: toad_msg::Version::default(),
-                                         code: self.code(env),
-                                         id: self.id(env),
-                                         token: self.token(env),
-                                         payload: toad_msg::Payload(self.payload(env)),
-                                         opts: self.options(env)
+                                         code: self.code(e),
+                                         id: self.id(e),
+                                         token: self.token(e),
+                                         payload: toad_msg::Payload(self.payload(e).bytes(e)),
+                                         opts: self.options(e)
                                                    .into_iter()
                                                    .map(|opt| {
-                                                     (opt.number(env),
-                                                      opt.values(env)
+                                                     (opt.number(e),
+                                                      opt.values(e)
                                                          .into_iter()
-                                                         .map(|v| toad_msg::OptValue(v.bytes(env)))
+                                                         .map(|v| toad_msg::OptValue(v.bytes(e)))
                                                          .collect())
                                                    })
                                                    .collect::<BTreeMap<toad_msg::OptNumber,
                                                             Vec<toad_msg::OptValue<Vec<u8>>>>>() };
     Addrd(msg,
-          self.addr(env)
+          self.addr(e)
               .expect("java should have made sure the address was present"))
   }
 
-  pub fn close(&self, env: &mut java::Env) {
+  pub fn close(&self, e: &mut java::Env) {
     static CLOSE: java::Method<Message, fn()> = java::Method::new("close");
-    CLOSE.invoke(env, self)
+    CLOSE.invoke(e, self)
   }
 
-  pub fn addr(&self, env: &mut java::Env) -> Option<no_std_net::SocketAddr> {
+  pub fn addr(&self, e: &mut java::Env) -> Option<no_std_net::SocketAddr> {
     static SOURCE: java::Method<Message, fn() -> java::util::Optional<InetSocketAddress>> =
       java::Method::new("addr");
-    SOURCE.invoke(env, self)
-          .to_option(env)
-          .map(|a| a.to_no_std(env))
+    SOURCE.invoke(e, self).to_option(e).map(|a| a.to_no_std(e))
   }
 
-  pub fn ty(&self, env: &mut java::Env) -> toad_msg::Type {
+  pub fn ty(&self, e: &mut java::Env) -> toad_msg::Type {
     static TYPE: java::Method<Message, fn() -> Type> = java::Method::new("type");
-    TYPE.invoke(env, self).to_toad(env)
+    TYPE.invoke(e, self).to_toad(e)
   }
 
-  pub fn id(&self, env: &mut java::Env) -> toad_msg::Id {
+  pub fn id(&self, e: &mut java::Env) -> toad_msg::Id {
     static ID: java::Method<Message, fn() -> Id> = java::Method::new("id");
-    ID.invoke(env, self).to_toad(env)
+    ID.invoke(e, self).to_toad(e)
   }
 
-  pub fn token(&self, env: &mut java::Env) -> toad_msg::Token {
+  pub fn token(&self, e: &mut java::Env) -> toad_msg::Token {
     static TOKEN: java::Method<Message, fn() -> Token> = java::Method::new("token");
-    TOKEN.invoke(env, self).to_toad(env)
+    TOKEN.invoke(e, self).to_toad(e)
   }
 
-  pub fn code(&self, env: &mut java::Env) -> toad_msg::Code {
+  pub fn code(&self, e: &mut java::Env) -> toad_msg::Code {
     static CODE: java::Method<Message, fn() -> Code> = java::Method::new("code");
-    CODE.invoke(env, self).to_toad(env)
+    CODE.invoke(e, self).to_toad(e)
   }
 
-  pub fn options(&self, env: &mut java::Env) -> Vec<Opt> {
+  pub fn options(&self, e: &mut java::Env) -> Vec<Opt> {
     static OPTIONS: java::Method<Message, fn() -> Vec<Opt>> = java::Method::new("optionRefs");
-    OPTIONS.invoke(env, self)
+    OPTIONS.invoke(e, self)
   }
 
-  pub fn payload(&self, env: &mut java::Env) -> Vec<u8> {
-    static PAYLOAD: java::Method<Message, fn() -> Vec<i8>> = java::Method::new("payloadBytes");
-    PAYLOAD.invoke(env, self)
-           .into_iter()
-           .map(|i| u8::from_be_bytes(i.to_be_bytes()))
-           .collect()
+  pub fn payload(&self, e: &mut java::Env) -> Payload {
+    static PAYLOAD: java::Method<Message, fn() -> Payload> = java::Method::new("payload");
+    PAYLOAD.invoke(e, self)
   }
 }
 
@@ -132,15 +128,21 @@ pub extern "system" fn Java_dev_toad_msg_ref_Message_token<'local>(mut env: java
 }
 
 #[no_mangle]
-pub extern "system" fn Java_dev_toad_msg_ref_Message_payloadBytes<'local>(mut env: java::Env<'local>,
-                                                                          msg: JObject<'local>)
-                                                                          -> jobject {
+pub extern "system" fn Java_dev_toad_msg_ref_Message_payload<'local>(mut env: java::Env<'local>,
+                                                                     msg: JObject<'local>)
+                                                                     -> jobject {
   let e = &mut env;
   java::lang::Object::from_local(e, msg).upcast_to::<Message>(e)
                                         .try_deref(e)
                                         .map(|msg| {
-                                          java::lang::Object::from_local(e, e.byte_array_from_slice(&msg.data().payload.0)
-                                           .unwrap())
+                                          msg.data()
+                                             .content_format()
+                                             .map(|f| {
+                                               Payload::new(e, msg.data().payload.0.iter().copied())
+                                             })
+                                             .unwrap_or_else(|| {
+                                               Payload::new(e, msg.data().payload.0.iter().copied())
+                                             })
                                         })
                                         .yield_to_java_or_throw(e)
 }
