@@ -29,7 +29,23 @@ public final class Accept extends ContentFormat implements Option {
     return Accept.number;
   }
 
+  public Accept(Option o) {
+    super(new ContentFormat(o).value());
+  }
+
   public Accept(ContentFormat format) {
     this(format.value());
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case Accept cf -> this.equals(cf);
+      default -> false;
+    };
+  }
+
+  public boolean equals(Accept other) {
+    return this.value.equals(other.value);
   }
 }

@@ -27,7 +27,11 @@ public final class Query implements Option {
   }
 
   public Query(String query) {
-    this.query = new ArrayList<>(Arrays.asList(query.split("&")));
+    if (query == null || query.isEmpty()) {
+      this.query = new ArrayList<>();
+    } else {
+      this.query = new ArrayList<>(Arrays.asList(query.split("&")));
+    }
   }
 
   public Query(List<String> query) {

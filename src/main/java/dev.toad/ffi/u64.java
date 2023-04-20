@@ -23,4 +23,16 @@ public final class u64 {
   public BigInteger bigintValue() {
     return this.l;
   }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case u64 o -> this.equals(o);
+      default -> false;
+    };
+  }
+
+  public boolean equals(u64 other) {
+    return this.bigintValue() == other.bigintValue();
+  }
 }

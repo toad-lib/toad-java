@@ -1,5 +1,6 @@
 package dev.toad.msg.build;
 
+import dev.toad.msg.Payload;
 import dev.toad.msg.Code;
 import dev.toad.msg.Id;
 import dev.toad.msg.Token;
@@ -29,7 +30,7 @@ public final class Message
   Optional<InetSocketAddress> addr = Optional.empty();
   Optional<Code> code = Optional.empty();
   Optional<Type> type = Optional.empty();
-  byte[] payload = new byte[] {};
+  Optional<Payload> payload = Optional.empty();
 
   Message() {}
 
@@ -74,6 +75,11 @@ public final class Message
     return this;
   }
 
+  public Message payload(Payload payload) {
+    this.payload = Optional.of(payload);
+    return this.option(payload.contentFormat().get());
+  }
+
   public Message option(
     Function<OptionNeeds.Number, dev.toad.msg.owned.Option> fun
   ) {
@@ -95,16 +101,6 @@ public final class Message
     return this;
   }
 
-  public Message payload(String payload) {
-    this.payload = payload.getBytes();
-    return this;
-  }
-
-  public Message payload(byte[] payload) {
-    this.payload = payload;
-    return this;
-  }
-
   public dev.toad.msg.Message build() {
     return new dev.toad.msg.owned.Message(
       this.addr,
@@ -112,7 +108,7 @@ public final class Message
       this.code.get(),
       this.id.orElse(Id.defaultId()),
       this.token.orElse(Token.defaultToken()),
-      this.payload,
+      this.payload.map(p -> p.bytes()).orElse(new byte[]{}),
       this.options.entrySet()
         .stream()
         .map(ent -> new dev.toad.msg.owned.Option(ent.getKey(), ent.getValue()))

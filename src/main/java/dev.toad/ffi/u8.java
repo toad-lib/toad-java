@@ -13,4 +13,16 @@ public final class u8 {
   public short shortValue() {
     return this.l;
   }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case u8 o -> this.equals(o);
+      default -> false;
+    };
+  }
+
+  public boolean equals(u8 other) {
+    return this.shortValue() == other.shortValue();
+  }
 }

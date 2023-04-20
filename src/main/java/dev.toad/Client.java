@@ -1,6 +1,10 @@
 package dev.toad;
 
+import dev.toad.msg.Code;
+import dev.toad.msg.Type;
 import dev.toad.msg.Message;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -10,6 +14,14 @@ public final class Client implements AutoCloseable {
 
   Client(Toad toad) {
     this.toad = toad;
+  }
+
+  public CompletableFuture<Message> get(String uri) throws URISyntaxException, UnknownHostException {
+    return this.get(Type.CON, uri);
+  }
+
+  public CompletableFuture<Message> get(Type ty, String uri) throws URISyntaxException, UnknownHostException {
+    return this.send(Message.builder().uri(uri).type(ty).code(Code.GET).build());
   }
 
   public CompletableFuture<Message> send(Message message) {

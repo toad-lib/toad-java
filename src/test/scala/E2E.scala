@@ -23,8 +23,7 @@ class E2E extends munit.FunSuite {
       .code(Code.OK_CONTENT)
       .id(Id(2))
       .token(Token(Array(1)))
-      .option(ContentFormat.TEXT)
-      .payload("foobar")
+      .payload(Payload.text("foobar"))
       .build
 
     val req = dev.toad.msg.build.Message

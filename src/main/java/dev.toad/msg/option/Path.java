@@ -21,11 +21,15 @@ public final class Path implements Option {
   }
 
   public Path(String path) {
-    if (path.startsWith("/")) {
-      path = path.substring(1);
-    }
+    if (path == null || path.isEmpty()) {
+      this.segments = new ArrayList<>();
+    } else {
+      if (path.startsWith("/")) {
+        path = path.substring(1);
+      }
 
-    this.segments = new ArrayList<>(Arrays.asList(path.trim().split("/")));
+      this.segments = new ArrayList<>(Arrays.asList(path.trim().split("/")));
+    }
   }
 
   public boolean equals(Path other) {
