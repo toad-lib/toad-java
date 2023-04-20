@@ -6,6 +6,18 @@ import dev.toad.msg.option.Path
 import dev.toad.msg.option.Query
 
 class MessageBuilder extends munit.FunSuite {
+  test("from(Message) copies another message") {
+    val msg = dev.toad.msg.build.Message
+      .builder()
+      .uri("coap://localhost")
+      .`type`(Type.NON)
+      .code(Code.GET)
+      .payload(Payload.json("[\"fart\"]"))
+      .build
+
+    assertEquals(msg, dev.toad.msg.build.Message.from(msg).build)
+  }
+
   test("payload(Payload) sets content format to ContentFormat.JSON") {
     val msg = dev.toad.msg.build.Message
       .builder()

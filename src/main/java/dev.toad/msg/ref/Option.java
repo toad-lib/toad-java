@@ -29,6 +29,13 @@ public class Option implements dev.toad.msg.Option, AutoCloseable {
     return new dev.toad.msg.owned.Option(this);
   }
 
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.Option o -> o.equals(this);
+      default -> false;
+    };
+  }
+
   @Override
   public void close() {
     this.ptr.release();

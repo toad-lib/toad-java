@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,40 @@ public final class Message
   Optional<Payload> payload = Optional.empty();
 
   Message() {}
+
+  public static Message from(dev.toad.msg.Message other) {
+    var builder = new Message();
+
+    Function<dev.toad.msg.Option, Long> key = o -> o.number();
+    Function<dev.toad.msg.Option, ArrayList<dev.toad.msg.owned.OptionValue>> value =
+      o ->
+        o
+          .values()
+          .stream()
+          .map(v -> v.toOwned())
+          .collect(Collectors.toCollection(ArrayList::new));
+    BinaryOperator<ArrayList<dev.toad.msg.owned.OptionValue>> merge = (
+      a,
+      b
+    ) -> {
+      a.addAll(b);
+      return a;
+    };
+
+    builder.options =
+      other
+        .options()
+        .stream()
+        .collect(Collectors.toMap(key, value, merge, () -> new HashMap<>()));
+    builder.id = Optional.of(other.id());
+    builder.code = Optional.of(other.code());
+    builder.token = Optional.of(other.token());
+    builder.type = Optional.of(other.type());
+    builder.payload = Optional.of(other.payload());
+    builder.addr = other.addr();
+
+    return builder;
+  }
 
   public static MessageNeeds.Destination builder() {
     return new Message();
@@ -72,8 +107,23 @@ public final class Message
     return this;
   }
 
+  public Message unsetId() {
+    this.id = Optional.empty();
+    return this;
+  }
+
   public Message token(Token token) {
     this.token = Optional.of(token);
+    return this;
+  }
+
+  public Message unsetToken() {
+    this.token = Optional.empty();
+    return this;
+  }
+
+  public Message unsetOption(long num) {
+    this.options.remove(num);
     return this;
   }
 
@@ -90,17 +140,26 @@ public final class Message
   }
 
   public Message option(dev.toad.msg.Option opt) {
-    return this.option(opt.number(), opt.values());
+    return this.putOption(opt.number(), opt.values());
+  }
+
+  public Message putOption(long number, List<dev.toad.msg.OptionValue> values) {
+    this.options.put(
+        number,
+        values
+          .stream()
+          .map(v -> v.toOwned())
+          .collect(Collectors.toCollection(ArrayList::new))
+      );
+    return this;
   }
 
   public Message option(long number, List<dev.toad.msg.OptionValue> values) {
-    if (this.options.get(number) == null) {
-      this.options.put(number, new ArrayList<>());
-    }
-
-    this.options.get(number)
-      .addAll(values.stream().map(v -> v.toOwned()).toList());
-    return this;
+    var vals = Optional
+      .ofNullable(this.options.get(number))
+      .orElse(new ArrayList<>());
+    vals.addAll(values.stream().map(v -> v.toOwned()).toList());
+    return this.putOption(number, List.copyOf(vals));
   }
 
   public dev.toad.msg.Message build() {

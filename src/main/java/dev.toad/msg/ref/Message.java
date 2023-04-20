@@ -46,6 +46,13 @@ public final class Message implements dev.toad.msg.Message, AutoCloseable {
     return Arrays.asList(this.optionRefs());
   }
 
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.Message m -> m.equals(this);
+      default -> false;
+    };
+  }
+
   @Override
   public void close() {
     this.ptr.release();

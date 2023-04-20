@@ -29,4 +29,11 @@ public class OptionValue implements dev.toad.msg.OptionValue {
   public dev.toad.msg.owned.OptionValue toOwned() {
     return this;
   }
+
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.OptionValue o -> o.equals(this);
+      default -> false;
+    };
+  }
 }

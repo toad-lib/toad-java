@@ -6,4 +6,8 @@ public interface Option {
   public long number();
 
   public List<OptionValue> values();
+
+  public default boolean equals(Option o) {
+    return this.number() == o.number() && this.values().equals(o.values());
+  }
 }

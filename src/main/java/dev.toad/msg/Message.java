@@ -32,6 +32,10 @@ public interface Message {
 
   public byte[] toBytes();
 
+  public default dev.toad.msg.build.Message modify() {
+    return dev.toad.msg.build.Message.from(this);
+  }
+
   public default Optional<Option> getOption(long number) {
     return this.options().stream().filter(o -> o.number() == number).findAny();
   }
@@ -54,5 +58,16 @@ public interface Message {
 
   public default Optional<Query> getQuery() {
     return this.getOption(Query.number).map(o -> new Query(o));
+  }
+
+  public default boolean equals(Message o) {
+    return (
+      this.addr().equals(o.addr()) &&
+      this.options().equals(o.options()) &&
+      this.id().equals(o.id()) &&
+      this.token().equals(o.token()) &&
+      this.type().equals(o.type()) &&
+      this.payload().equals(o.payload())
+    );
   }
 }

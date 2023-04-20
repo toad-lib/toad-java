@@ -21,6 +21,13 @@ public final class OptionValue
     return new dev.toad.msg.owned.OptionValue(this);
   }
 
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.OptionValue o -> o.equals(this);
+      default -> false;
+    };
+  }
+
   @Override
   public void close() {
     this.ptr.release();

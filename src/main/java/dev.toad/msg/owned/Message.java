@@ -85,4 +85,11 @@ public class Message implements dev.toad.msg.Message {
   public Payload payload() {
     return this.payload;
   }
+
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.Message m -> m.equals(this);
+      default -> false;
+    };
+  }
 }

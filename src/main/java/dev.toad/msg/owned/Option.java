@@ -35,4 +35,11 @@ public class Option implements dev.toad.msg.Option {
   public List<dev.toad.msg.OptionValue> values() {
     return List.copyOf(this.values);
   }
+
+  public boolean equals(Object other) {
+    return switch (other) {
+      case dev.toad.msg.Option o -> o.equals(this);
+      default -> false;
+    };
+  }
 }
