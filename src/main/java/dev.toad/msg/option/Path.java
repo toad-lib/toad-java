@@ -3,21 +3,29 @@ package dev.toad.msg.option;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public final class Path implements Option {
+
   final ArrayList<String> segments;
 
   public static final long number = 11;
 
   public Path(Option o) {
     if (o.number() != Path.number) {
-      throw new IllegalArgumentException(String.format("%d != Path number %d", o.number(), Path.number));
+      throw new IllegalArgumentException(
+        String.format("%d != Path number %d", o.number(), Path.number)
+      );
     }
 
-    this.segments = o.values().stream().map(v -> v.asString()).collect(Collectors.toCollection(() -> new ArrayList<>()));
+    this.segments =
+      o
+        .values()
+        .stream()
+        .map(v -> v.asString())
+        .collect(Collectors.toCollection(() -> new ArrayList<>()));
   }
 
   public Path(String path) {
@@ -52,6 +60,8 @@ public final class Path implements Option {
 
   @Override
   public List<OptionValue> values() {
-    return this.segments.stream().map(s -> new dev.toad.msg.owned.OptionValue(s)).collect(Collectors.toList());
+    return this.segments.stream()
+      .map(s -> new dev.toad.msg.owned.OptionValue(s))
+      .collect(Collectors.toList());
   }
 }

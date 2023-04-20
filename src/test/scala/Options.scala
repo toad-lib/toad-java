@@ -41,8 +41,12 @@ class Options extends munit.FunSuite {
       ),
       Map(
         "foo" -> Seq(Query.Value("test")),
-        "bar" -> Seq(Query.Value.empty, Query.Value.empty, Query.Value("third")),
-        "quux" -> Seq(Query.Value("a"), Query.Value("b")),
+        "bar" -> Seq(
+          Query.Value.empty,
+          Query.Value.empty,
+          Query.Value("third")
+        ),
+        "quux" -> Seq(Query.Value("a"), Query.Value("b"))
       )
     )
   }

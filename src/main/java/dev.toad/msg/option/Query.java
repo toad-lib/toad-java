@@ -2,12 +2,12 @@ package dev.toad.msg.option;
 
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
-import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -20,10 +20,17 @@ public final class Query implements Option {
 
   public Query(Option o) {
     if (o.number() != Query.number) {
-      throw new IllegalArgumentException(String.format("%d != Query number %d", o.number(), Query.number));
+      throw new IllegalArgumentException(
+        String.format("%d != Query number %d", o.number(), Query.number)
+      );
     }
 
-    this.query = o.values().stream().map(v -> v.asString()).collect(Collectors.toCollection(() -> new ArrayList<>()));
+    this.query =
+      o
+        .values()
+        .stream()
+        .map(v -> v.asString())
+        .collect(Collectors.toCollection(() -> new ArrayList<>()));
   }
 
   public Query(String query) {
@@ -79,6 +86,7 @@ public final class Query implements Option {
   }
 
   public static final class Value {
+
     final Optional<String> val;
 
     public Value(String val) {
@@ -100,7 +108,7 @@ public final class Query implements Option {
     @Override
     public String toString() {
       if (!this.value().isEmpty()) {
-        return "Query.Value(\""+this.value().get()+"\")";
+        return "Query.Value(\"" + this.value().get() + "\")";
       } else {
         return "Query.Value.empty()";
       }
@@ -112,7 +120,7 @@ public final class Query implements Option {
 
     @Override
     public boolean equals(Object other) {
-      return switch(other) {
+      return switch (other) {
         case Value v -> this.equals(v);
         default -> false;
       };

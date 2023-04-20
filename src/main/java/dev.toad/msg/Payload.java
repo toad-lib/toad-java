@@ -1,10 +1,11 @@
 package dev.toad.msg;
 
-import java.util.Optional;
 import dev.toad.msg.option.ContentFormat;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 public final class Payload {
+
   final byte[] bytes;
   final Optional<ContentFormat> contentFormat;
 

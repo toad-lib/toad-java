@@ -1,13 +1,13 @@
 package dev.toad.msg.option;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
 import dev.toad.ffi.u16;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
-import java.util.ArrayList;
-import java.util.List;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public sealed class ContentFormat implements Option permits Accept {
 
@@ -17,11 +17,22 @@ public sealed class ContentFormat implements Option permits Accept {
 
   public ContentFormat(Option o) {
     if (o.number() != ContentFormat.number) {
-      throw new IllegalArgumentException(String.format("%d != ContentFormat number %d", o.number(), Path.number));
+      throw new IllegalArgumentException(
+        String.format("%d != ContentFormat number %d", o.number(), Path.number)
+      );
     }
 
     if (o.values().size() > 1) {
-      throw new IllegalArgumentException(String.format("ContentFormat is not repeatable, %s", o.values().stream().map(v -> v.asString()).collect(Collectors.toList())));
+      throw new IllegalArgumentException(
+        String.format(
+          "ContentFormat is not repeatable, %s",
+          o
+            .values()
+            .stream()
+            .map(v -> v.asString())
+            .collect(Collectors.toList())
+        )
+      );
     }
 
     var bytes = o.values().get(0).asBytes();
@@ -32,7 +43,7 @@ public sealed class ContentFormat implements Option permits Accept {
     } else if (bytes.length == 2) {
       this.value = new u16(buf.getShort());
     } else if (bytes.length == 3) {
-      buf.put(0, (byte)0);
+      buf.put(0, (byte) 0);
       this.value = new u16(buf.getInt());
     } else {
       this.value = new u16(buf.getInt());

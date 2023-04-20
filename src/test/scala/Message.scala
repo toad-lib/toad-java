@@ -81,7 +81,10 @@ class MessageBuilder extends munit.FunSuite {
       .code(Code.GET)
       .build
 
-    assertEquals(Seq.from(msg.getPath.get.segments.asScala), Seq("cheese", "gruyere"))
+    assertEquals(
+      Seq.from(msg.getPath.get.segments.asScala),
+      Seq("cheese", "gruyere")
+    )
   }
 
   test("uri sets query to query section of uri") {
