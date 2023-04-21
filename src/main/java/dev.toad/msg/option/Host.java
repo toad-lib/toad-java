@@ -51,6 +51,11 @@ public final class Host implements Option {
   }
 
   @Override
+  public String toDebugString() {
+    return String.format("Uri-Host: %s", this.host);
+  }
+
+  @Override
   public boolean equals(Object other) {
     return switch (other) {
       case Host h -> this.toString().equals(h.toString());

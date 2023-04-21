@@ -74,7 +74,7 @@ class MessageBuilder extends munit.FunSuite {
     assertEquals(msg.addr.get.getPort, 5684)
   }
 
-  test("uri(String) sets host to host section of uri") {
+  test("uri(String) sets host to resolved host address from URI") {
     val msg = dev.toad.msg.build.Message
       .builder()
       .uri("coap://localhost/cheese/gruyere?foo=bar&bingus")
@@ -82,7 +82,7 @@ class MessageBuilder extends munit.FunSuite {
       .code(Code.GET)
       .build
 
-    assertEquals(msg.getHost.get.toString, "localhost")
+    assertEquals(msg.getHost.get.toString, "127.0.0.1")
   }
 
   test("uri(String) sets path to path section of uri") {

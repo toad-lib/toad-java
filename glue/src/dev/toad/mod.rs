@@ -39,12 +39,13 @@ impl Toad {
   }
 
   fn init_impl(e: &mut java::Env, cfg: Config, channel: PeekableDatagramChannel) -> i64 {
-    let r = || Runtime::new(&mut java::env(), cfg.log_level(e), cfg.to_toad(e), channel);
-    unsafe { crate::mem::Shared::init(r).addr() as i64 }
+    let r = Runtime::new(&mut java::env(), cfg.log_level(e), cfg.to_toad(e), channel);
+    unsafe { crate::mem::Shared::add_runtime(r).addr() as i64 }
   }
 
   fn poll_req_impl(e: &mut java::Env, addr: i64) -> java::util::Optional<msg::ref_::Message> {
-    match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.poll_req() {
+    let r = unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() };
+    match r.poll_req() {
       | Ok(req) => {
         let msg_ptr = unsafe { Shared::alloc_message(req.map(Into::into)) };
         let mr = msg::ref_::Message::new(e, msg_ptr.addr() as i64);
@@ -85,11 +86,13 @@ impl Toad {
                        addr: i64,
                        msg: msg::owned::Message)
                        -> java::util::Optional<IdAndToken> {
-    match unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() }.send_msg(Addrd(msg.to_toad(e), msg.addr(e).unwrap().to_no_std(e))) {
+    let r = unsafe { Shared::deref::<Runtime>(addr).as_ref().unwrap() };
+    let sent = r.send_msg(Addrd(msg.to_toad(e), msg.addr(e).unwrap().to_no_std(e)));
+    match sent {
       | Ok((id, token)) => {
         let out = IdAndToken::new(e, id, token);
         java::util::Optional::of(e, out)
-            },
+      },
       | Err(nb::Error::WouldBlock) => java::util::Optional::empty(e),
       | Err(nb::Error::Other(err)) => {
         let err = err.downcast_ref(e).to_local(e);
@@ -370,4 +373,13 @@ pub extern "system" fn Java_dev_toad_Toad_pollResp<'local>(mut e: java::Env<'loc
   let token = java::lang::Object::from_local(e, token).upcast_to::<msg::Token>(e);
   let sock = java::lang::Object::from_local(e, sock).upcast_to::<InetSocketAddress>(e);
   Toad::poll_resp_impl(e, addr, token, sock).yield_to_java(e)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_teardown<'local>(_: java::Env<'local>,
+                                                           _: JClass<'local>)
+                                                           -> () {
+  unsafe {
+    crate::mem::Shared::dealloc();
+  }
 }

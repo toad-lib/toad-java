@@ -48,6 +48,10 @@ public final class Path implements Option {
     return this.segments;
   }
 
+  public boolean matches(String str) {
+    return this.toString().trim().equals(str.trim());
+  }
+
   @Override
   public long number() {
     return Path.number;
@@ -56,6 +60,11 @@ public final class Path implements Option {
   @Override
   public String toString() {
     return String.join("/", this.segments);
+  }
+
+  @Override
+  public String toDebugString() {
+    return String.format("Uri-Path: %s", this.toString());
   }
 
   @Override

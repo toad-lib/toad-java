@@ -85,6 +85,11 @@ public final class Query implements Option {
       .collect(Collectors.toList());
   }
 
+  @Override
+  public String toDebugString() {
+    return String.format("Uri-Query: %s", this.toString());
+  }
+
   public static final class Value {
 
     final Optional<String> val;

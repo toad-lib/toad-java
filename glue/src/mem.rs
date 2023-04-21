@@ -3,16 +3,15 @@ use std::sync::Mutex;
 use toad::net::Addrd;
 use toad_msg::alloc::Message;
 
+use crate::runtime;
+
 /// global [`RuntimeAllocator`] implementation
 pub type Shared = GlobalStatic;
 
 /// Trait managing the memory region(s) which java will store pointers to
 pub trait SharedMemoryRegion: core::default::Default + core::fmt::Debug + Copy {
-  /// Allocate memory for the runtime and yield a stable pointer to it
-  ///
-  /// This is idempotent and will only invoke the provided callback if the runtime
-  /// has not already been initialized.
-  unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime;
+  /// Allocate memory for a new runtime instance, yielding a stable pointer to it
+  unsafe fn add_runtime(r: crate::Runtime) -> *mut crate::Runtime;
 
   /// Pass ownership of a [`Message`] to the shared memory region,
   /// yielding a stable pointer to this message.
@@ -33,35 +32,39 @@ pub trait SharedMemoryRegion: core::default::Default + core::fmt::Debug + Copy {
   }
 }
 
-static mut MEM: Mem = Mem { runtime: None,
+static mut MEM: Mem = Mem { runtimes: vec![],
                             messages: vec![],
-                            messages_lock: Mutex::new(()) };
+                            messages_lock: Mutex::new(()),
+                            runtimes_lock: Mutex::new(()) };
 
 struct Mem {
-  runtime: Option<crate::Runtime>,
+  runtimes: Vec<crate::Runtime>,
   messages: Vec<Addrd<Message>>,
 
-  /// Lock used by `alloc_message` and `dealloc_message` to ensure
-  /// they are run serially.
-  ///
-  /// This doesn't provide any guarantees that message pointers will
-  /// stay valid or always point to the correct location, but it does
-  /// ensure we don't accidentally yield the wrong pointer from `alloc_message`
-  /// or delete the wrong message in `dealloc_message`.
+  // These locks don't provide any guarantees that message pointers will
+  // stay valid or always point to the correct location, but it does
+  // ensure we don't accidentally yield the wrong pointer from `alloc_message`
+  // or delete the wrong message in `dealloc_message`.
   messages_lock: Mutex<()>,
+  runtimes_lock: Mutex<()>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct GlobalStatic;
 impl SharedMemoryRegion for GlobalStatic {
-  unsafe fn dealloc() {}
+  unsafe fn dealloc() {
+    MEM.runtimes = vec![];
+    MEM.messages = vec![];
+  }
 
-  unsafe fn init(r: impl FnOnce() -> crate::Runtime) -> *mut crate::Runtime {
-    if MEM.runtime.is_none() {
-      MEM.runtime = Some(r());
-    }
-
-    MEM.runtime.as_mut().unwrap() as _
+  unsafe fn add_runtime(r: crate::Runtime) -> *mut crate::Runtime {
+    let Mem { ref mut runtimes,
+              ref mut runtimes_lock,
+              .. } = &mut MEM;
+    let _lock = runtimes_lock.lock();
+    runtimes.push(r);
+    let len = runtimes.len();
+    &mut runtimes[len - 1] as _
   }
 
   unsafe fn alloc_message(m: Addrd<Message>) -> *mut Addrd<Message> {

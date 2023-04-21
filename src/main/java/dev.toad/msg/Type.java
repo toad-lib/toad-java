@@ -1,6 +1,8 @@
 package dev.toad.msg;
 
-public enum Type {
+import dev.toad.Debug;
+
+public enum Type implements Debug {
   CON(1),
   NON(2),
   ACK(3),
@@ -26,5 +28,10 @@ public enum Type {
       case "reset" -> RESET;
       default -> throw new Error();
     };
+  }
+
+  @Override
+  public String toDebugString() {
+    return this.toString();
   }
 }

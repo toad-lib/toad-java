@@ -91,15 +91,18 @@ public final class Client implements AutoCloseable {
     return new ClientObserveStream(this, message);
   }
 
-  public CompletableFuture<Message> send(Message message) {
+  public CompletableFuture<Toad.IdAndToken> sendNoResponse(Message message) {
     if (message.addr().isEmpty()) {
       throw new IllegalArgumentException(
         "Message destination address must be set"
       );
     }
 
-    return Async
-      .pollCompletable(() -> this.toad.sendMessage(message))
+    return Async.pollCompletable(() -> this.toad.sendMessage(message));
+  }
+
+  public CompletableFuture<Message> send(Message message) {
+    return this.sendNoResponse(message)
       .thenCompose((Toad.IdAndToken sent) ->
         this.awaitResponse(sent.token, message.addr().get())
       );

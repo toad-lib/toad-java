@@ -10,8 +10,15 @@ import java.nio.channels.DatagramChannel;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Logger;
 
 public final class Toad implements AutoCloseable {
+
+  public static Logger logger() {
+    // Configured in `glue::Runtime::new()`
+    return Logger.getLogger("dev.toad");
+  }
 
   static native Config defaultConfigImpl();
 
@@ -36,6 +43,8 @@ public final class Toad implements AutoCloseable {
   final Ptr ptr;
   final Config config;
   final DatagramChannel channel;
+
+  static native void teardown();
 
   static native long init(DatagramChannel chan, Config o);
 
@@ -83,6 +92,14 @@ public final class Toad implements AutoCloseable {
 
   @Override
   public void close() {
+    Toad.teardown();
+
+    try {
+      this.channel.close();
+    } catch (Throwable e) {
+      throw new RuntimeException(e);
+    }
+
     this.ptr.release();
   }
 
@@ -123,6 +140,16 @@ public final class Toad implements AutoCloseable {
       }
     }
 
+    public Server.Builder server() throws IOException {
+      if (this.ioException.isEmpty()) {
+        var cfg = new Config(this.logLevel, this.concurrency, this.msg.build());
+        var toad = new Toad(cfg, this.channel.get());
+        return new Server.Builder(toad);
+      } else {
+        throw this.ioException.get();
+      }
+    }
+
     public Builder msg(Function<Config.Msg.Builder, Config.Msg.Builder> f) {
       this.msg = f.apply(this.msg);
       return this;
@@ -143,6 +170,7 @@ public final class Toad implements AutoCloseable {
           java.net.StandardProtocolFamily.INET
         );
         channel.bind(addr);
+        channel.configureBlocking(false);
         return this.channel(channel);
       } catch (java.io.IOException e) {
         this.ioException = Optional.of(e);

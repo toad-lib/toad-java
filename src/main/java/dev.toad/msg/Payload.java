@@ -1,10 +1,12 @@
 package dev.toad.msg;
 
+import dev.toad.Debug;
 import dev.toad.msg.option.ContentFormat;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Optional;
 
-public final class Payload {
+public final class Payload implements Debug {
 
   final byte[] bytes;
   final Optional<ContentFormat> contentFormat;
@@ -59,5 +61,20 @@ public final class Payload {
 
   public static Payload octetStream(byte[] bytes) {
     return new Payload(ContentFormat.OCTET_STREAM, bytes);
+  }
+
+  @Override
+  public String toDebugString() {
+    if (this.contentFormat.map(ContentFormat::isUtf8Text).orElse(false)) {
+      return this.toString();
+    } else {
+      var intList = new ArrayList<Integer>();
+      var bytes = this.bytes();
+      for (byte b : bytes) {
+        intList.add((int) b);
+      }
+
+      return String.format("%s", intList.toString());
+    }
   }
 }

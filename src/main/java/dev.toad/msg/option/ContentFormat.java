@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public sealed class ContentFormat implements Option permits Accept {
 
-  final u16 value;
+  protected u16 value;
 
   public static final long number = 12;
 
@@ -74,6 +74,52 @@ public sealed class ContentFormat implements Option permits Accept {
     return new ContentFormat(value);
   }
 
+  public boolean isUtf8Text() {
+    return (
+      this.value() == ContentFormat.TEXT.value() ||
+      this.value() == ContentFormat.CSS.value() ||
+      this.value() == ContentFormat.JSON.value() ||
+      this.value() == ContentFormat.XML.value() ||
+      this.value() == ContentFormat.JAVASCRIPT.value() ||
+      this.value() == ContentFormat.LINK_FORMAT.value() ||
+      this.value() == ContentFormat.IMAGE_SVG.value()
+    );
+  }
+
+  public String toMimeType() {
+    // https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats
+    return this.value() == ContentFormat.TEXT.value()
+      ? "text/plain; charset=utf-8"
+      : this.value() == ContentFormat.CSS.value()
+        ? "text/css"
+        : this.value() == ContentFormat.JSON.value()
+          ? "application/json"
+          : this.value() == ContentFormat.XML.value()
+            ? "application/xml"
+            : this.value() == ContentFormat.EXI.value()
+              ? "application/exi"
+              : this.value() == ContentFormat.CBOR.value()
+                ? "application/cbor"
+                : this.value() == ContentFormat.JAVASCRIPT.value()
+                  ? "application/javascript"
+                  : this.value() == ContentFormat.OCTET_STREAM.value()
+                    ? "application/octet-stream"
+                    : this.value() == ContentFormat.LINK_FORMAT.value()
+                      ? "application/link-format"
+                      : this.value() == ContentFormat.IMAGE_GIF.value()
+                        ? "image/gif"
+                        : this.value() == ContentFormat.IMAGE_JPG.value()
+                          ? "image/jpeg"
+                          : this.value() == ContentFormat.IMAGE_PNG.value()
+                            ? "image/png"
+                            : this.value() == ContentFormat.IMAGE_SVG.value()
+                              ? "image/svg+xml"
+                              : String.format(
+                                "ContentFormat(%d)",
+                                this.value()
+                              );
+  }
+
   @Override
   public boolean equals(Object other) {
     return switch (other) {
@@ -102,5 +148,10 @@ public sealed class ContentFormat implements Option permits Accept {
     var list = new ArrayList<OptionValue>();
     list.add(new dev.toad.msg.owned.OptionValue(this.value.toBytes()));
     return list;
+  }
+
+  @Override
+  public String toDebugString() {
+    return String.format("Content-Format: %s", this.toMimeType());
   }
 }

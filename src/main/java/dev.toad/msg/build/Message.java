@@ -79,12 +79,22 @@ public final class Message
     var addr = InetAddress.getByName(uri.getHost());
     var port = uri.getPort() > 0
       ? uri.getPort()
-      : uri.getScheme().equals("coaps") ? 5684 : 5683;
+      : uri.getScheme() != null && uri.getScheme().equals("coaps")
+        ? 5684
+        : 5683;
     this.addr = Optional.of(new InetSocketAddress(addr, port));
 
-    return this.option(new Host(uri.getHost()))
-      .option(new Query(uri.getQuery()))
-      .option(new Path(uri.getPath()));
+    this.option(new Host(addr.getHostAddress()));
+
+    if (uri.getQuery() != null && !uri.getQuery().isEmpty()) {
+      this.option(new Query(uri.getQuery()));
+    }
+
+    if (uri.getPath() != null && !uri.getPath().isEmpty()) {
+      this.option(new Path(uri.getPath()));
+    }
+
+    return this;
   }
 
   public MessageNeeds.Type addr(InetSocketAddress addr) {
@@ -129,7 +139,10 @@ public final class Message
 
   public Message payload(Payload payload) {
     this.payload = Optional.of(payload);
-    return this.option(payload.contentFormat().get());
+    if (!payload.contentFormat().isEmpty()) {
+      this.option(payload.contentFormat().get());
+    }
+    return this;
   }
 
   public Message option(

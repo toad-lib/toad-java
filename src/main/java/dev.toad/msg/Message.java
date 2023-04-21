@@ -1,15 +1,18 @@
 package dev.toad.msg;
 
+import dev.toad.Debug;
 import dev.toad.msg.option.Accept;
 import dev.toad.msg.option.ContentFormat;
 import dev.toad.msg.option.Host;
 import dev.toad.msg.option.Path;
 import dev.toad.msg.option.Query;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
 
-public interface Message {
+public interface Message extends Debug {
   public static dev.toad.msg.build.MessageNeeds.Destination builder() {
     return dev.toad.msg.build.Message.builder();
   }
@@ -60,6 +63,34 @@ public interface Message {
     return this.getOption(Query.number).map(o -> new Query(o));
   }
 
+  public default URI uri() {
+    int port = this.addr().map(a -> a.getPort()).orElse(5683);
+    String scheme = port == 5684 ? "coaps" : "coap";
+    String hostAddr =
+      this.addr().map(a -> a.getAddress().toString()).orElse(null);
+    String host = this.getHost().map(h -> h.toString()).orElse(hostAddr);
+    String path =
+      this.getPath()
+        .map(p -> p.toString())
+        .map(p -> p.startsWith("/") ? p : "/" + p)
+        .orElse(null);
+    String query = this.getQuery().map(q -> q.toString()).orElse(null);
+
+    try {
+      return new URI(
+        scheme,
+        /* userInfo */null,
+        host,
+        port,
+        path,
+        query,
+        /* fragment */null
+      );
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public default boolean equals(Message o) {
     return (
       this.addr().equals(o.addr()) &&
@@ -68,6 +99,27 @@ public interface Message {
       this.token().equals(o.token()) &&
       this.type().equals(o.type()) &&
       this.payload().equals(o.payload())
+    );
+  }
+
+  @Override
+  public default String toDebugString() {
+    return (
+      this.type().toDebugString() +
+      " " +
+      this.code().toDebugString() +
+      " " +
+      this.uri().toString() +
+      "\n  " +
+      this.id().toDebugString() +
+      " " +
+      this.token().toDebugString() +
+      this.options()
+        .stream()
+        .map(Debug::toDebugString)
+        .reduce("", (b, a) -> b + "\n  " + a) +
+      "\n\n" +
+      this.payload().toDebugString()
     );
   }
 }

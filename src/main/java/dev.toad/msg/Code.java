@@ -1,8 +1,9 @@
 package dev.toad.msg;
 
+import dev.toad.Debug;
 import dev.toad.ffi.u8;
 
-public final class Code {
+public final class Code implements Debug {
 
   final u8 clazz;
   final u8 detail;
@@ -56,16 +57,41 @@ public final class Code {
     if (this.isRequest()) {
       return switch ((Short) this.detail.shortValue()) {
         case 1 -> "GET";
-        case 2 -> "PUT";
-        case 3 -> "POST";
+        case 2 -> "POST";
+        case 3 -> "PUT";
         case Short other -> "DELETE";
       };
     } else {
-      return String.format(
+      var str = String.format(
         "%d.%d",
         this.clazz.shortValue(),
         this.detail.shortValue()
       );
+
+      return switch (str) {
+        case "2.01" -> "2.01 Created";
+        case "2.02" -> "2.02 Deleted";
+        case "2.03" -> "2.03 Valid";
+        case "2.04" -> "2.04 Changed";
+        case "2.05" -> "2.05 Content";
+        case "4.00" -> "4.00 Bad Request";
+        case "4.01" -> "4.01 Unauthorized";
+        case "4.02" -> "4.02 Bad Option";
+        case "4.03" -> "4.03 Forbidden";
+        case "4.04" -> "4.04 Not Found";
+        case "4.05" -> "4.05 Method Not Allowed";
+        case "4.06" -> "4.06 Not Acceptable";
+        case "4.12" -> "4.12 Precondition Failed";
+        case "4.13" -> "4.13 Request Entity Too Large";
+        case "4.15" -> "4.15 Unsupported Content Format";
+        case "5.00" -> "5.00 Internal Server Error";
+        case "5.01" -> "5.01 Not Implemented";
+        case "5.02" -> "5.02 Bad Gateway";
+        case "5.03" -> "5.03 Service Unavailable";
+        case "5.04" -> "5.04 Gateway Timeout";
+        case "5.05" -> "5.05 Proxying Not Supported";
+        case String other -> other;
+      };
     }
   }
 
@@ -79,5 +105,25 @@ public final class Code {
 
   public boolean isEmpty() {
     return this.codeClass() == 0 && this.codeDetail() == 0;
+  }
+
+  @Override
+  public String toDebugString() {
+    return this.toString();
+  }
+
+  public boolean equals(Code other) {
+    return (
+      this.codeClass() == other.codeClass() &&
+      this.codeDetail() == other.codeDetail()
+    );
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case Code c -> c.equals(this);
+      default -> false;
+    };
   }
 }

@@ -58,13 +58,21 @@ public class Mock {
       ScatteringByteChannel,
       ReadableByteChannel {
 
-    public Map<SocketAddress, List<ByteBuffer>> sent = new HashMap<>();
-    public Map<SocketAddress, List<ByteBuffer>> recv = new HashMap<>();
-    public List<Byte> bytes = new ArrayList<>();
+    public Channel sister = null;
+    public List<ByteBuffer> dgrams = new ArrayList<>();
     public DatagramSocket sock;
 
     public Channel() throws SocketException, UnknownHostException {
-      this(new DatagramSocket(1234));
+      this(0);
+    }
+
+    public Channel(int port) throws SocketException, UnknownHostException {
+      this(new DatagramSocket(port));
+    }
+
+    public void pairTo(Channel other) {
+      this.sister = other;
+      this.sister.sister = this;
     }
 
     public Channel(DatagramSocket sock)
@@ -75,38 +83,23 @@ public class Mock {
 
     @Override
     public int send(ByteBuffer src, SocketAddress target) {
-      var sent = this.sent.get(target);
-      if (sent == null) {
-        var list = new ArrayList<ByteBuffer>();
-        this.sent.put(target, list);
-      }
-
-      this.sent.get(target).add(src);
-
+      this.sister.dgrams.add(src);
       return (int) src.capacity();
     }
 
     @Override
     public SocketAddress receive(ByteBuffer dst) {
-      for (Map.Entry<SocketAddress, List<ByteBuffer>> ent : this.recv.entrySet()) {
-        if (ent.getValue().size() == 0) {
-          this.recv.remove(ent.getKey());
-        } else {
-          var buf = ent.getValue().remove(0);
-          dst.put(buf);
-          return ent.getKey();
-        }
+      if (this.dgrams.size() > 0) {
+        dst.put(this.dgrams.remove(0));
+        return this.sister.sock.address();
+      } else {
+        return null;
       }
-      return null;
     }
 
     @Override
     public int write(ByteBuffer src) {
-      src.rewind();
-      for (int j = 0; j < src.capacity(); j++) {
-        this.bytes.add(src.get(j));
-      }
-
+      this.dgrams.add(src);
       return (int) src.capacity();
     }
 
@@ -120,12 +113,13 @@ public class Mock {
     }
 
     public int read(ByteBuffer dst, int start) {
-      int orig = (int) dst.position();
-      for (Byte b : this.bytes.subList(start, this.bytes.size())) {
-        dst.put(b);
+      if (this.dgrams.size() > 0) {
+        var src = this.dgrams.remove(0);
+        dst.put(src);
+        return src.capacity();
+      } else {
+        return 0;
       }
-
-      return (int) dst.position() - orig;
     }
 
     @Override
