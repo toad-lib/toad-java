@@ -35,30 +35,48 @@ public final class Message
 
   Message() {}
 
-  public static Message from(dev.toad.msg.Message other) {
+  public static MessageNeeds.Code respondTo(dev.toad.msg.Message other) {
+    return Message.respondTo(other, false);
+  }
+
+  public static MessageNeeds.Code respondTo(
+    dev.toad.msg.Message other,
+    boolean conResponseToNonRequest
+  ) {
+    // prettier-ignore
+    Type type = Type.eq.test(other.type(), Type.CON) ? Type.ACK
+              : conResponseToNonRequest              ? Type.CON
+              : Type.NON;
+
+    return Message.copyOf(other).unsetId().type(type);
+  }
+
+  public static Message copyOf(dev.toad.msg.Message other) {
     var builder = new Message();
 
-    Function<dev.toad.msg.Option, Long> key = o -> o.number();
-    Function<dev.toad.msg.Option, ArrayList<dev.toad.msg.owned.OptionValue>> value =
+    Function<dev.toad.msg.Option, Long> key;
+    Function<dev.toad.msg.Option, ArrayList<dev.toad.msg.owned.OptionValue>> value;
+    BinaryOperator<ArrayList<dev.toad.msg.owned.OptionValue>> merge;
+
+    key = o -> o.number();
+    value =
       o ->
         o
           .values()
           .stream()
-          .map(v -> v.toOwned())
+          .map(dev.toad.msg.OptionValue::toOwned)
           .collect(Collectors.toCollection(ArrayList::new));
-    BinaryOperator<ArrayList<dev.toad.msg.owned.OptionValue>> merge = (
-      a,
-      b
-    ) -> {
-      a.addAll(b);
-      return a;
-    };
+    merge =
+      (a, b) -> {
+        a.addAll(b);
+        return a;
+      };
 
     builder.options =
       other
         .options()
         .stream()
-        .collect(Collectors.toMap(key, value, merge, () -> new HashMap<>()));
+        .collect(Collectors.toMap(key, value, merge, HashMap::new));
     builder.id = Optional.of(other.id());
     builder.code = Optional.of(other.code());
     builder.token = Optional.of(other.token());
@@ -73,15 +91,17 @@ public final class Message
     return new Message();
   }
 
-  public MessageNeeds.Type uri(String uriStr)
+  public Message uri(String uriStr)
     throws URISyntaxException, UnknownHostException {
     var uri = new URI(uriStr);
     var addr = InetAddress.getByName(uri.getHost());
-    var port = uri.getPort() > 0
-      ? uri.getPort()
-      : uri.getScheme() != null && uri.getScheme().equals("coaps")
-        ? 5684
-        : 5683;
+    var secure = uri.getScheme() != null && uri.getScheme().equals("coaps");
+
+    // prettier-ignore
+    var port = uri.getPort() > 0 ? uri.getPort()
+             : secure ? 5684
+             : 5683;
+
     this.addr = Optional.of(new InetSocketAddress(addr, port));
 
     this.option(new Host(addr.getHostAddress()));
@@ -97,12 +117,12 @@ public final class Message
     return this;
   }
 
-  public MessageNeeds.Type addr(InetSocketAddress addr) {
+  public Message addr(InetSocketAddress addr) {
     this.addr = Optional.of(addr);
     return this;
   }
 
-  public MessageNeeds.Code type(Type type) {
+  public Message type(Type type) {
     this.type = Optional.of(type);
     return this;
   }

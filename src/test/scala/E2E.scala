@@ -14,36 +14,29 @@ import java.util.concurrent.TimeUnit
 import java.net.InetAddress
 
 class E2E extends munit.FunSuite {
-  test("minimal client and server") {
+  test("little baby server") {
     Toad.loadNativeLib()
 
-    val serverThread = Thread((() => {
-      Toad.builder
-        .port(10102)
-        .logLevel(Level.INFO)
-        .server
-        .post(
-          "exit",
-          _msg => {
-            Server.Middleware.exit
-          }
-        )
-        .get(
-          "hello",
-          msg => {
-            val name = msg.payload.toString
-            val rep = msg.modify.unsetId
-              .`type`(Type.NON)
-              .code(Code.OK_CONTENT)
-              .payload(Payload.text(s"Hello, $name!"))
-              .build
-            Server.Middleware.respond(rep)
-          }
-        )
-        .build
-        .run
-    }): java.lang.Runnable)
+    val server = Toad.builder
+      .port(10102)
+      .logLevel(Level.INFO)
+      .server
+      .post("exit", _msg => Server.Middleware.exit)
+      .get(
+        "hello",
+        msg => {
+          val rep = msg.buildResponse
+            .code(Code.OK_CONTENT)
+            .`type`(Type.NON)
+            .payload(Payload.text(s"Hello, ${msg.payload.toString}!"))
+            .build
 
+          Server.Middleware.respond(rep)
+        }
+      )
+      .build;
+
+    val serverThread = Thread((() => server.run()): java.lang.Runnable)
     serverThread.start()
 
     val req = Message.builder
@@ -68,6 +61,6 @@ class E2E extends munit.FunSuite {
       client.sendNoResponse(exit)
     }
 
-    serverThread.join
+    serverThread.join()
   }
 }

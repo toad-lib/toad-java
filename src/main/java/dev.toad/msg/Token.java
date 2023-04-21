@@ -1,11 +1,15 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public final class Token implements Debug {
 
   public static native Token defaultToken();
+
+  public static final Eq<Token> eq = Eq.byteArray.contramap(Token::toBytes);
 
   final byte[] bytes;
 
@@ -30,7 +34,7 @@ public final class Token implements Debug {
   @Override
   public boolean equals(Object other) {
     return switch (other) {
-      case Token t -> t.bytes.equals(this.bytes);
+      case Token t -> Token.eq.test(this, t);
       default -> false;
     };
   }

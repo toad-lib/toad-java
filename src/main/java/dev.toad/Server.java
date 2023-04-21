@@ -110,9 +110,7 @@ public final class Server {
       CompletableFuture.completedFuture(Optional.empty());
 
     public static final Function<Message, Result> notFound = m -> {
-      return Middleware.respond(
-        m.modify().unsetId().code(Code.NOT_FOUND).build()
-      );
+      return Middleware.respond(m.buildResponse().code(Code.NOT_FOUND).build());
     };
 
     public static final BiFunction<Message, Throwable, Result> debugExceptionHandler =
@@ -126,8 +124,7 @@ public final class Server {
           );
 
         var rep = m
-          .modify()
-          .unsetId()
+          .buildResponse()
           .code(Code.INTERNAL_SERVER_ERROR)
           .payload(Payload.text(e.toString()))
           .build();
@@ -144,7 +141,7 @@ public final class Server {
             String.format("while handling %s", m.toDebugString()),
             e
           );
-        var rep = m.modify().unsetId().code(Code.INTERNAL_SERVER_ERROR).build();
+        var rep = m.buildResponse().code(Code.INTERNAL_SERVER_ERROR).build();
         return Middleware.respond(rep);
       };
 
@@ -358,8 +355,11 @@ public final class Server {
     public Builder put(String path, Function<Message, Middleware.Result> f) {
       return this.when(
           m ->
-            m.code().equals(Code.PUT) &&
-            m.getPath().map(p -> p.matches(path)).orElse(path == ""),
+            Code.eq.test(m.code(), Code.PUT) &&
+            m
+              .getPath()
+              .map(p -> p.matches(path))
+              .orElse(path == null || path.isEmpty()),
           f
         );
     }
@@ -367,8 +367,11 @@ public final class Server {
     public Builder post(String path, Function<Message, Middleware.Result> f) {
       return this.when(
           m ->
-            m.code().equals(Code.POST) &&
-            m.getPath().map(p -> p.matches(path)).orElse(path == ""),
+            Code.eq.test(m.code(), Code.POST) &&
+            m
+              .getPath()
+              .map(p -> p.matches(path))
+              .orElse(path == null || path.isEmpty()),
           f
         );
     }
@@ -376,8 +379,11 @@ public final class Server {
     public Builder delete(String path, Function<Message, Middleware.Result> f) {
       return this.when(
           m ->
-            m.code().equals(Code.DELETE) &&
-            m.getPath().map(p -> p.matches(path)).orElse(path == ""),
+            Code.eq.test(m.code(), Code.DELETE) &&
+            m
+              .getPath()
+              .map(p -> p.matches(path))
+              .orElse(path == null || path.isEmpty()),
           f
         );
     }
@@ -385,7 +391,7 @@ public final class Server {
     public Builder get(String path, Function<Message, Middleware.Result> f) {
       return this.when(
           m ->
-            m.code().equals(Code.GET) &&
+            Code.eq.test(m.code(), Code.GET) &&
             m
               .getPath()
               .map(p -> p.matches(path))

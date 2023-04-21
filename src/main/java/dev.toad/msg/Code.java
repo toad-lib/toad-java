@@ -1,12 +1,21 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 import dev.toad.ffi.u8;
+import java.util.List;
 
 public final class Code implements Debug {
 
   final u8 clazz;
   final u8 detail;
+
+  public static Eq<Code> eq = Eq.all(
+    List.of(
+      Eq.short_.contramap(Code::codeClass),
+      Eq.short_.contramap(Code::codeDetail)
+    )
+  );
 
   public static final Code EMPTY = new Code(0, 0);
 
@@ -112,17 +121,10 @@ public final class Code implements Debug {
     return this.toString();
   }
 
-  public boolean equals(Code other) {
-    return (
-      this.codeClass() == other.codeClass() &&
-      this.codeDetail() == other.codeDetail()
-    );
-  }
-
   @Override
   public boolean equals(Object other) {
     return switch (other) {
-      case Code c -> c.equals(this);
+      case Code c -> Code.eq.test(c, this);
       default -> false;
     };
   }

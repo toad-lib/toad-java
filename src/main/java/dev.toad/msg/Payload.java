@@ -1,15 +1,31 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 import dev.toad.msg.option.ContentFormat;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public final class Payload implements Debug {
 
   final byte[] bytes;
   final Optional<ContentFormat> contentFormat;
+
+  public static final Eq<Payload> eq = Eq.all(
+    List.of(
+      Eq.optional(ContentFormat.eq).contramap(Payload::contentFormat),
+      Eq.byteArray.contramap(Payload::bytes)
+    )
+  );
+
+  public static boolean equals(Payload a, Payload b) {
+    return (
+      Arrays.equals(a.bytes, b.bytes) && a.contentFormat.equals(b.contentFormat)
+    );
+  }
 
   public Payload() {
     this.contentFormat = Optional.empty();
@@ -61,6 +77,14 @@ public final class Payload implements Debug {
 
   public static Payload octetStream(byte[] bytes) {
     return new Payload(ContentFormat.OCTET_STREAM, bytes);
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case Payload p -> Payload.eq.test(this, p);
+      default -> false;
+    };
   }
 
   @Override

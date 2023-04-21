@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
 import java.util.ArrayList;
@@ -12,6 +13,9 @@ public final class Path implements Option {
   final ArrayList<String> segments;
 
   public static final long number = 11;
+  public static final Eq<Path> eq = Eq
+    .list(Eq.string)
+    .contramap(Path::segments);
 
   public Path(Option o) {
     if (o.number() != Path.number) {
@@ -38,10 +42,6 @@ public final class Path implements Option {
 
       this.segments = new ArrayList<>(Arrays.asList(path.trim().split("/")));
     }
-  }
-
-  public boolean equals(Path other) {
-    return this.segments == other.segments;
   }
 
   public List<String> segments() {
@@ -72,5 +72,13 @@ public final class Path implements Option {
     return this.segments.stream()
       .map(s -> new dev.toad.msg.owned.OptionValue(s))
       .collect(Collectors.toList());
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case Path p -> Path.eq.test(this, p);
+      default -> false;
+    };
   }
 }

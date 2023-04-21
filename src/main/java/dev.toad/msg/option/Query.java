@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
 import java.util.ArrayList;
@@ -17,6 +18,9 @@ public final class Query implements Option {
 
   final ArrayList<String> query;
   public static final long number = 15;
+  public static final Eq<Query> eq = Eq
+    .<String, List<Value>>map(Eq.list(Value.eq))
+    .contramap(Query::toMap);
 
   public Query(Option o) {
     if (o.number() != Query.number) {
@@ -90,12 +94,24 @@ public final class Query implements Option {
     return String.format("Uri-Query: %s", this.toString());
   }
 
+  @Override
+  public boolean equals(Object other) {
+    return switch (other) {
+      case Query q -> Query.eq.test(this, q);
+      default -> false;
+    };
+  }
+
   public static final class Value {
+
+    public static final Eq<Value> eq = Eq
+      .optional(Eq.string)
+      .contramap(Value::value);
 
     final Optional<String> val;
 
     public Value(String val) {
-      if (val == null || val == "") {
+      if (val == null || val.isEmpty()) {
         this.val = Optional.empty();
       } else {
         this.val = Optional.of(val);
@@ -119,14 +135,10 @@ public final class Query implements Option {
       }
     }
 
-    public boolean equals(Value other) {
-      return this.toString().equals(other.toString());
-    }
-
     @Override
     public boolean equals(Object other) {
       return switch (other) {
-        case Value v -> this.equals(v);
+        case Value v -> Value.eq.test(this, v);
         default -> false;
       };
     }

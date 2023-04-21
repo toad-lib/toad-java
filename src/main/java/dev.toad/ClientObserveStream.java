@@ -15,13 +15,13 @@ public class ClientObserveStream {
   public ClientObserveStream(Client client, Message message) {
     this.state = State.OPEN;
     this.client = client;
-    this.message = message.modify().option(Observe.REGISTER).build();
+    this.message = message.buildCopy().option(Observe.REGISTER).build();
     this.buffered = Optional.of(client.send(this.message));
   }
 
   public CompletableFuture<Void> close() {
     return this.client.send(
-        this.message.modify().option(Observe.DEREGISTER).unsetId().build()
+        this.message.buildCopy().option(Observe.DEREGISTER).unsetId().build()
       )
       .thenAccept(m -> {
         this.state = State.CLOSED;
@@ -29,7 +29,7 @@ public class ClientObserveStream {
   }
 
   public CompletableFuture<Message> next() {
-    if (this.state == State.CLOSED) {
+    if (State.eq.test(State.CLOSED, this.state)) {
       throw new RuntimeException(
         "ClientObserveStream.next() invoked after .close()"
       );
@@ -47,6 +47,8 @@ public class ClientObserveStream {
 
   public static final class State {
 
+    public static final Eq<State> eq = Eq.int_.contramap((State s) -> s.state);
+
     public static final State OPEN = new State(0);
     public static final State CLOSED = new State(1);
 
@@ -56,14 +58,10 @@ public class ClientObserveStream {
       this.state = state;
     }
 
-    public boolean equals(State other) {
-      return this.state == other.state;
-    }
-
     @Override
     public boolean equals(Object other) {
       return switch (other) {
-        case State s -> this.equals(s);
+        case State s -> State.eq.test(this, s);
         default -> false;
       };
     }

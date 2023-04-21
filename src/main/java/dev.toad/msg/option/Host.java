@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ public final class Host implements Option {
   final String host;
 
   public static final long number = 3;
+  public static final Eq<Host> eq = Eq.string.contramap(Host::toString);
 
   public Host(Option o) {
     if (o.number() != Host.number) {
@@ -58,7 +60,7 @@ public final class Host implements Option {
   @Override
   public boolean equals(Object other) {
     return switch (other) {
-      case Host h -> this.toString().equals(h.toString());
+      case Host h -> Host.eq.test(this, h);
       default -> false;
     };
   }

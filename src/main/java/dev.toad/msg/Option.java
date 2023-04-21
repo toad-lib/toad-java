@@ -1,6 +1,7 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 import dev.toad.msg.option.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -10,8 +11,17 @@ public interface Option extends Debug {
 
   public List<OptionValue> values();
 
+  public static Eq<Option> eq() {
+    return Eq.all(
+      List.of(
+        Eq.long_.contramap(o -> o.number()),
+        Eq.list(OptionValue.eq()).contramap(Option::values)
+      )
+    );
+  }
+
   public default boolean equals(Option o) {
-    return this.number() == o.number() && this.values().equals(o.values());
+    return Option.eq().test(this, o);
   }
 
   @Override

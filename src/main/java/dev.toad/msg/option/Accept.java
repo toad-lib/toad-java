@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.ffi.u16;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
@@ -11,6 +12,7 @@ import java.util.stream.Collectors;
 public final class Accept extends ContentFormat implements Option {
 
   public static final long number = 17;
+  public static final Eq<Accept> eq = Eq.int_.contramap(Accept::value);
 
   public static final Accept TEXT = new Accept(ContentFormat.TEXT);
   public static final Accept LINK_FORMAT = new Accept(
@@ -46,7 +48,7 @@ public final class Accept extends ContentFormat implements Option {
           o
             .values()
             .stream()
-            .map(v -> v.asString())
+            .map(OptionValue::asString)
             .collect(Collectors.toList())
         )
       );

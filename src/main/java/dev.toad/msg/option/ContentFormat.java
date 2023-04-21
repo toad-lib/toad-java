@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.ffi.u16;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
@@ -13,6 +14,9 @@ public sealed class ContentFormat implements Option permits Accept {
 
   protected u16 value;
 
+  public static final Eq<ContentFormat> eq = Eq.int_.contramap(
+    ContentFormat::value
+  );
   public static final long number = 12;
 
   public ContentFormat(Option o) {
@@ -76,48 +80,37 @@ public sealed class ContentFormat implements Option permits Accept {
 
   public boolean isUtf8Text() {
     return (
-      this.value() == ContentFormat.TEXT.value() ||
-      this.value() == ContentFormat.CSS.value() ||
-      this.value() == ContentFormat.JSON.value() ||
-      this.value() == ContentFormat.XML.value() ||
-      this.value() == ContentFormat.JAVASCRIPT.value() ||
-      this.value() == ContentFormat.LINK_FORMAT.value() ||
-      this.value() == ContentFormat.IMAGE_SVG.value()
+      this.equals(ContentFormat.TEXT) ||
+      this.equals(ContentFormat.CSS) ||
+      this.equals(ContentFormat.JSON) ||
+      this.equals(ContentFormat.XML) ||
+      this.equals(ContentFormat.JAVASCRIPT) ||
+      this.equals(ContentFormat.LINK_FORMAT) ||
+      this.equals(ContentFormat.IMAGE_SVG)
     );
   }
 
   public String toMimeType() {
     // https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats
-    return this.value() == ContentFormat.TEXT.value()
-      ? "text/plain; charset=utf-8"
-      : this.value() == ContentFormat.CSS.value()
-        ? "text/css"
-        : this.value() == ContentFormat.JSON.value()
-          ? "application/json"
-          : this.value() == ContentFormat.XML.value()
-            ? "application/xml"
-            : this.value() == ContentFormat.EXI.value()
-              ? "application/exi"
-              : this.value() == ContentFormat.CBOR.value()
-                ? "application/cbor"
-                : this.value() == ContentFormat.JAVASCRIPT.value()
-                  ? "application/javascript"
-                  : this.value() == ContentFormat.OCTET_STREAM.value()
-                    ? "application/octet-stream"
-                    : this.value() == ContentFormat.LINK_FORMAT.value()
-                      ? "application/link-format"
-                      : this.value() == ContentFormat.IMAGE_GIF.value()
-                        ? "image/gif"
-                        : this.value() == ContentFormat.IMAGE_JPG.value()
-                          ? "image/jpeg"
-                          : this.value() == ContentFormat.IMAGE_PNG.value()
-                            ? "image/png"
-                            : this.value() == ContentFormat.IMAGE_SVG.value()
-                              ? "image/svg+xml"
-                              : String.format(
-                                "ContentFormat(%d)",
-                                this.value()
-                              );
+    // prettier-ignore
+    return this.equals(ContentFormat.TEXT)         ? "text/plain; charset=utf-8"
+         : this.equals(ContentFormat.CSS)          ? "text/css"
+         : this.equals(ContentFormat.JSON)         ? "application/json"
+         : this.equals(ContentFormat.XML)          ? "application/xml"
+         : this.equals(ContentFormat.EXI)          ? "application/exi"
+         : this.equals(ContentFormat.CBOR)         ? "application/cbor"
+         : this.equals(ContentFormat.JAVASCRIPT)   ? "application/javascript"
+         : this.equals(ContentFormat.OCTET_STREAM) ? "application/octet-stream"
+         : this.equals(ContentFormat.LINK_FORMAT)  ? "application/link-format"
+         : this.equals(ContentFormat.IMAGE_GIF)    ? "image/gif"
+         : this.equals(ContentFormat.IMAGE_JPG)    ? "image/jpeg"
+         : this.equals(ContentFormat.IMAGE_PNG)    ? "image/png"
+         : this.equals(ContentFormat.IMAGE_SVG)    ? "image/svg+xml"
+         : String.format("ContentFormat(%d)", this.value());
+  }
+
+  public boolean equals(ContentFormat cf) {
+    return ContentFormat.eq.test(this, cf);
   }
 
   @Override
@@ -126,10 +119,6 @@ public sealed class ContentFormat implements Option permits Accept {
       case ContentFormat cf -> this.equals(cf);
       default -> false;
     };
-  }
-
-  public boolean equals(ContentFormat other) {
-    return this.value() == other.value();
   }
 
   public String toString() {

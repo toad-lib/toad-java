@@ -1,6 +1,7 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 import dev.toad.msg.option.Accept;
 import dev.toad.msg.option.ContentFormat;
 import dev.toad.msg.option.Host;
@@ -35,8 +36,12 @@ public interface Message extends Debug {
 
   public byte[] toBytes();
 
-  public default dev.toad.msg.build.Message modify() {
-    return dev.toad.msg.build.Message.from(this);
+  public default dev.toad.msg.build.Message buildCopy() {
+    return dev.toad.msg.build.Message.copyOf(this);
+  }
+
+  public default dev.toad.msg.build.MessageNeeds.Code buildResponse() {
+    return dev.toad.msg.build.Message.respondTo(this);
   }
 
   public default Optional<Option> getOption(long number) {
@@ -91,15 +96,22 @@ public interface Message extends Debug {
     }
   }
 
-  public default boolean equals(Message o) {
-    return (
-      this.addr().equals(o.addr()) &&
-      this.options().equals(o.options()) &&
-      this.id().equals(o.id()) &&
-      this.token().equals(o.token()) &&
-      this.type().equals(o.type()) &&
-      this.payload().equals(o.payload())
+  public static Eq<Message> eq() {
+    return Eq.all(
+      List.of(
+        Eq.optional(Eq.socketAddress).contramap(m -> m.addr()),
+        Eq.list(Option.eq()).contramap(m -> m.options()),
+        Code.eq.contramap(m -> m.code()),
+        Id.eq.contramap(m -> m.id()),
+        Token.eq.contramap(m -> m.token()),
+        Type.eq.contramap(m -> m.type()),
+        Payload.eq.contramap(m -> m.payload())
+      )
     );
+  }
+
+  public default boolean equals(Message m) {
+    return Message.eq().test(this, m);
   }
 
   @Override

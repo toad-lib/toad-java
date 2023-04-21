@@ -1,12 +1,15 @@
 package dev.toad.msg;
 
 import dev.toad.Debug;
+import dev.toad.Eq;
 
 public enum Type implements Debug {
   CON(1),
   NON(2),
   ACK(3),
   RESET(4);
+
+  public static final Eq<Type> eq = new Eq<>((a, b) -> a == b);
 
   private Type(int val) {}
 

@@ -208,7 +208,8 @@ public final class Toad implements AutoCloseable {
     @Override
     public boolean equals(Object other) {
       return switch (other) {
-        case Config o -> o.concurrency == this.concurrency && o.msg == this.msg;
+        case Config o -> o.concurrency.equals(this.concurrency) &&
+        o.msg.equals(this.msg);
         default -> false;
       };
     }
@@ -258,11 +259,11 @@ public final class Toad implements AutoCloseable {
       @Override
       public boolean equals(Object other) {
         return switch (other) {
-          case Msg o -> o.tokenSeed == this.tokenSeed &&
-          o.probingRateBytesPerSecond == this.probingRateBytesPerSecond &&
-          o.multicastResponseLeisure == this.multicastResponseLeisure &&
-          o.con == this.con &&
-          o.non == this.non;
+          case Msg o -> o.tokenSeed.equals(this.tokenSeed) &&
+          o.probingRateBytesPerSecond.equals(this.probingRateBytesPerSecond) &&
+          o.multicastResponseLeisure.equals(this.multicastResponseLeisure) &&
+          o.con.equals(this.con) &&
+          o.non.equals(this.non);
           default -> false;
         };
       }
@@ -362,9 +363,11 @@ public final class Toad implements AutoCloseable {
         @Override
         public boolean equals(Object other) {
           return switch (other) {
-            case Con o -> this.ackedRetryStrategy == o.ackedRetryStrategy &&
-            this.unackedRetryStrategy == o.unackedRetryStrategy &&
-            this.maxAttempts == o.maxAttempts;
+            case Con o -> this.ackedRetryStrategy.equals(
+                o.ackedRetryStrategy
+              ) &&
+            this.unackedRetryStrategy.equals(o.unackedRetryStrategy) &&
+            this.maxAttempts.equals(o.maxAttempts);
             default -> false;
           };
         }
@@ -435,8 +438,8 @@ public final class Toad implements AutoCloseable {
         @Override
         public boolean equals(Object other) {
           return switch (other) {
-            case Non o -> this.retryStrategy == o.retryStrategy &&
-            this.maxAttempts == o.maxAttempts;
+            case Non o -> this.retryStrategy.equals(o.retryStrategy) &&
+            this.maxAttempts.equals(o.maxAttempts);
             default -> false;
           };
         }

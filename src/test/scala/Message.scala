@@ -15,7 +15,54 @@ class MessageBuilder extends munit.FunSuite {
       .payload(Payload.json("[\"fart\"]"))
       .build
 
-    assertEquals(msg, dev.toad.msg.build.Message.from(msg).build)
+    assertEquals(msg, dev.toad.msg.build.Message.copyOf(msg).build)
+  }
+
+  test("respondTo(Message) unsets Id") {
+    val msg = dev.toad.msg.build.Message
+      .builder()
+      .uri("coap://localhost")
+      .`type`(Type.NON)
+      .code(Code.GET)
+      .payload(Payload.json("[\"fart\"]"))
+      .build
+
+    val rep =
+      dev.toad.msg.build.Message.respondTo(msg).code(Code.OK_CONTENT).build
+
+    assertEquals(rep.id, Id(0))
+  }
+
+  test("respondTo(Message) copies token") {
+    val msg = dev.toad.msg.build.Message
+      .builder()
+      .uri("coap://localhost")
+      .`type`(Type.NON)
+      .code(Code.GET)
+      .token(Token(Array[Byte](4, 5, 6)))
+      .payload(Payload.json("[\"fart\"]"))
+      .build
+
+    val rep =
+      dev.toad.msg.build.Message.respondTo(msg).code(Code.OK_CONTENT).build
+
+    assertEquals(rep.token, Token(Array[Byte](4, 5, 6)))
+  }
+
+  test("respondTo(Message) sets type to ACK on CON response") {
+    val msg = dev.toad.msg.build.Message
+      .builder()
+      .uri("coap://localhost")
+      .`type`(Type.CON)
+      .code(Code.GET)
+      .token(Token(Array[Byte](4, 5, 6)))
+      .payload(Payload.json("[\"fart\"]"))
+      .build
+
+    val rep =
+      dev.toad.msg.build.Message.respondTo(msg).code(Code.OK_CONTENT).build
+
+    assertEquals(rep.`type`(), Type.ACK)
   }
 
   test("payload(Payload) sets content format to ContentFormat.JSON") {
