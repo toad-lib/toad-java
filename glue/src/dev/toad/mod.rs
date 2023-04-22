@@ -3,18 +3,21 @@ pub mod msg;
 
 mod retry_strategy;
 
-use jni::objects::{JClass, JObject};
+use jni::objects::{JClass, JObject, JThrowable};
 use jni::sys::jobject;
 pub use retry_strategy::RetryStrategy;
 use toad::net::Addrd;
-use toad::platform::Platform;
+use toad::platform::{Platform, PlatformError};
 use toad::retry::{Attempts, Strategy};
+use toad::step::Step;
 use toad::time::Millis;
+use toad_jni::java::io::IOException;
 use toad_jni::java::net::InetSocketAddress;
 use toad_jni::java::nio::channels::{DatagramChannel, PeekableDatagramChannel};
 use toad_jni::java::util::Optional;
-use toad_jni::java::{self, Object};
+use toad_jni::java::{self, Object, ResultYieldToJavaOrThrow};
 
+use self::ffi::Ptr;
 use crate::mem::{Shared, SharedMemoryRegion};
 use crate::Runtime;
 
@@ -38,9 +41,25 @@ impl Toad {
     CONFIG.invoke(e, self)
   }
 
+  pub fn ptr(&self, e: &mut java::Env) -> Ptr {
+    static PTR: java::Field<Toad, Ptr> = java::Field::new("ptr");
+    PTR.get(e, self)
+  }
+
   fn init_impl(e: &mut java::Env, cfg: Config, channel: PeekableDatagramChannel) -> i64 {
     let r = Runtime::new(&mut java::env(), cfg.log_level(e), cfg.to_toad(e), channel);
     unsafe { crate::mem::Shared::add_runtime(r).addr() as i64 }
+  }
+
+  fn notify_impl(&self,
+                 e: &mut java::Env,
+                 path: impl AsRef<str> + Clone)
+                 -> Result<(), java::io::IOException> {
+    self.ptr(e)
+        .addr(e)
+        .map_err(|err| IOException::new_caused_by(e, "", err))
+        .map(|addr| unsafe { Shared::deref::<Runtime>(addr.inner(e)).as_ref().unwrap() })
+        .and_then(|r| r.notify(path).map_err(PlatformError::step))
   }
 
   fn poll_req_impl(e: &mut java::Env, addr: i64) -> java::util::Optional<msg::ref_::Message> {
@@ -373,6 +392,21 @@ pub extern "system" fn Java_dev_toad_Toad_pollResp<'local>(mut e: java::Env<'loc
   let token = java::lang::Object::from_local(e, token).upcast_to::<msg::Token>(e);
   let sock = java::lang::Object::from_local(e, sock).upcast_to::<InetSocketAddress>(e);
   Toad::poll_resp_impl(e, addr, token, sock).yield_to_java(e)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_toad_Toad_notify<'local>(mut e: java::Env<'local>,
+                                                         toad: JObject<'local>,
+                                                         path: JObject<'local>)
+                                                         -> () {
+  let e = &mut e;
+  let toad = java::lang::Object::from_local(e, toad).upcast_to::<Toad>(e);
+  let path = java::lang::Object::from_local(e, path).upcast_to::<String>(e);
+
+  if let Err(err) = toad.notify_impl(e, path) {
+    let err = JThrowable::from(err.downcast(e).to_local(e));
+    e.throw(err).unwrap()
+  }
 }
 
 #[no_mangle]

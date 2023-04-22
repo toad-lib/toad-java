@@ -42,6 +42,10 @@ public final class Payload implements Debug {
     this.bytes = bytes;
   }
 
+  public boolean isEmpty() {
+    return this.bytes.length == 0;
+  }
+
   @Override
   public String toString() {
     return new String(this.bytes, StandardCharsets.UTF_8);

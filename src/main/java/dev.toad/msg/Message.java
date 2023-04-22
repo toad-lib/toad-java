@@ -72,8 +72,12 @@ public interface Message extends Debug {
     int port = this.addr().map(a -> a.getPort()).orElse(5683);
     String scheme = port == 5684 ? "coaps" : "coap";
     String hostAddr =
-      this.addr().map(a -> a.getAddress().toString()).orElse(null);
-    String host = this.getHost().map(h -> h.toString()).orElse(hostAddr);
+      this.addr().map(a -> a.getAddress().getHostAddress()).orElse(null);
+    String host =
+      this.getHost()
+        .map(h -> h.toString())
+        .filter(h -> h != null && !h.trim().isEmpty())
+        .orElse(hostAddr);
     String path =
       this.getPath()
         .map(p -> p.toString())
@@ -130,8 +134,8 @@ public interface Message extends Debug {
         .stream()
         .map(Debug::toDebugString)
         .reduce("", (b, a) -> b + "\n  " + a) +
-      "\n\n" +
-      this.payload().toDebugString()
+      "\n" +
+      (!this.payload().isEmpty() ? "\n" + this.payload().toDebugString() : "")
     );
   }
 }

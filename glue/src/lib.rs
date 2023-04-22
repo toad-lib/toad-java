@@ -46,13 +46,16 @@ mod runtime {
                config: Config,
                channel: PeekableDatagramChannel)
                -> Self {
-      let handler = ConsoleHandler::new(e);
-      handler.set_level(e, log_level);
-
       let logger = Logger::get_logger(e, "dev.toad");
-      logger.use_parent_handlers(e, false);
-      logger.add_handler(e, handler.to_handler());
-      logger.set_level(e, log_level);
+
+      if logger.uses_parent_handlers(e) {
+        let handler = ConsoleHandler::new(e);
+        handler.set_level(e, log_level);
+
+        logger.use_parent_handlers(e, false);
+        logger.add_handler(e, handler.to_handler());
+        logger.set_level(e, log_level);
+      }
 
       Self { steps: Default::default(),
              config,

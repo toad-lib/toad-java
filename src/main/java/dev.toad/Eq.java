@@ -9,6 +9,7 @@ import java.util.function.Function;
 
 public final class Eq<T> {
 
+  public static final Eq<Boolean> bool = new Eq<>((a, b) -> a == b);
   public static final Eq<Short> short_ = new Eq<>((a, b) -> a == b);
   public static final Eq<Integer> int_ = new Eq<>((a, b) -> a == b);
   public static final Eq<Long> long_ = new Eq<>((a, b) -> a == b);

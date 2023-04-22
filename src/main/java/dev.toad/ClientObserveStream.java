@@ -1,14 +1,16 @@
 package dev.toad;
 
 import dev.toad.msg.Message;
+import dev.toad.msg.Token;
 import dev.toad.msg.option.Observe;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-public class ClientObserveStream {
+public class ClientObserveStream implements AutoCloseable {
 
   State state;
-  Optional<CompletableFuture<Message>> buffered;
+  CompletableFuture<Message> initial;
+  Optional<Token> token = Optional.empty();
   final Client client;
   final Message message;
 
@@ -16,16 +18,7 @@ public class ClientObserveStream {
     this.state = State.OPEN;
     this.client = client;
     this.message = message.buildCopy().option(Observe.REGISTER).build();
-    this.buffered = Optional.of(client.send(this.message));
-  }
-
-  public CompletableFuture<Void> close() {
-    return this.client.send(
-        this.message.buildCopy().option(Observe.DEREGISTER).unsetId().build()
-      )
-      .thenAccept(m -> {
-        this.state = State.CLOSED;
-      });
+    this.initial = client.send(this.message);
   }
 
   public CompletableFuture<Message> next() {
@@ -33,16 +26,29 @@ public class ClientObserveStream {
       throw new RuntimeException(
         "ClientObserveStream.next() invoked after .close()"
       );
-    } else if (this.buffered.isEmpty()) {
-      var buffered = this.buffered.get();
-      this.buffered = Optional.empty();
-      return buffered;
+    } else if (this.token.isEmpty()) {
+      return this.initial.whenComplete((rep, e) -> {
+          if (rep != null) {
+            this.token = Optional.of(rep.token());
+          }
+        });
     } else {
-      return this.client.awaitResponse(
-          this.message.token(),
-          this.message.addr().get()
+      return this.initial.thenCompose(_i ->
+          this.client.awaitResponse(this.token.get(), this.message.addr().get())
         );
     }
+  }
+
+  @Override
+  public void close() {
+    try {
+      this.client.send(
+          this.message.buildCopy().option(Observe.DEREGISTER).unsetId().build()
+        )
+        .get();
+    } catch (Throwable t) {}
+
+    this.state = State.CLOSED;
   }
 
   public static final class State {

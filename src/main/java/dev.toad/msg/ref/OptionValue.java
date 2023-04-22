@@ -1,6 +1,7 @@
 package dev.toad.msg.ref;
 
 import dev.toad.ffi.Ptr;
+import java.util.ArrayList;
 
 public final class OptionValue
   implements dev.toad.msg.OptionValue, AutoCloseable {

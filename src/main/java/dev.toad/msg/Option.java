@@ -26,7 +26,9 @@ public interface Option extends Debug {
 
   @Override
   public default String toDebugString() {
-    if (this.number() == Path.number) {
+    if (this.number() == Observe.number) {
+      return new Observe(this).toDebugString();
+    } else if (this.number() == Path.number) {
       return new Path(this).toDebugString();
     } else if (this.number() == Host.number) {
       return new Host(this).toDebugString();

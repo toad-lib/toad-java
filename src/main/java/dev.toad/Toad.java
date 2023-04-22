@@ -17,7 +17,9 @@ public final class Toad implements AutoCloseable {
 
   public static Logger logger() {
     // Configured in `glue::Runtime::new()`
-    return Logger.getLogger("dev.toad");
+    var l = Logger.getLogger("dev.toad");
+    l.setUseParentHandlers(false);
+    return l;
   }
 
   static native Config defaultConfigImpl();
@@ -52,6 +54,8 @@ public final class Toad implements AutoCloseable {
     long ptr,
     dev.toad.msg.owned.Message msg
   );
+
+  native void notify(String path);
 
   static native Optional<dev.toad.msg.ref.Message> pollReq(long ptr);
 
@@ -88,6 +92,10 @@ public final class Toad implements AutoCloseable {
 
   public Config config() {
     return this.config;
+  }
+
+  public InetSocketAddress localAddress() throws IOException {
+    return (InetSocketAddress) this.channel.getLocalAddress();
   }
 
   @Override

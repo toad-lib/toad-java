@@ -1,5 +1,6 @@
 package dev.toad.msg.option;
 
+import dev.toad.Eq;
 import dev.toad.msg.Option;
 import dev.toad.msg.OptionValue;
 import java.util.ArrayList;
@@ -10,6 +11,8 @@ import java.util.stream.Collectors;
 public final class Observe implements Option {
 
   final boolean register;
+
+  public static final Eq<Observe> eq = Eq.bool.contramap(Observe::isRegister);
 
   public static final Observe REGISTER = new Observe(true);
   public static final Observe DEREGISTER = new Observe(false);
@@ -41,13 +44,17 @@ public final class Observe implements Option {
     } else if (o.values().size() == 0) {
       this.register = false;
     } else {
-      this.register = o.values().get(0).asBytes()[0] == 1;
+      this.register = o.values().get(0).asBytes()[0] == 0;
     }
   }
 
   @Override
   public long number() {
-    return Host.number;
+    return Observe.number;
+  }
+
+  public boolean isRegister() {
+    return this.register;
   }
 
   @Override
@@ -68,9 +75,14 @@ public final class Observe implements Option {
     var list = new ArrayList<OptionValue>();
     list.add(
       new dev.toad.msg.owned.OptionValue(
-        new byte[] { this.register ? (byte) 1 : (byte) 0 }
+        new byte[] { this.register ? (byte) 0 : (byte) 1 }
       )
     );
     return list;
+  }
+
+  @Override
+  public String toDebugString() {
+    return this.register ? "Observe: Register" : "Observe: Deregister";
   }
 }

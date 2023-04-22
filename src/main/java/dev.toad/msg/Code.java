@@ -72,7 +72,7 @@ public final class Code implements Debug {
       };
     } else {
       var str = String.format(
-        "%d.%d",
+        "%d.%02d",
         this.clazz.shortValue(),
         this.detail.shortValue()
       );

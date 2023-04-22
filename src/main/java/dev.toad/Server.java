@@ -3,205 +3,303 @@ package dev.toad;
 import dev.toad.msg.Code;
 import dev.toad.msg.Message;
 import dev.toad.msg.Payload;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Level;
 
-public final class Server {
+public final class Server implements AutoCloseable {
 
+  boolean exit = false;
+  Optional<Thread> thread = Optional.empty();
   final Toad toad;
-  final ArrayList<Function<Message, Middleware.Result>> middlewares;
-  final Function<Message, Middleware.Result> notFoundHandler;
-  final BiFunction<Message, Throwable, Middleware.Result> exceptionHandler;
+  final ArrayList<Middleware> middlewares;
 
-  Server(
-    Toad toad,
-    ArrayList<Function<Message, Middleware.Result>> ms,
-    Function<Message, Middleware.Result> notFoundHandler,
-    BiFunction<Message, Throwable, Middleware.Result> exHandler
-  ) {
+  Server(Toad toad, ArrayList<Middleware> ms) {
     this.toad = toad;
     this.middlewares = ms;
-    this.notFoundHandler = notFoundHandler;
-    this.exceptionHandler = exHandler;
   }
 
-  public void run() {
-    while (true) {
+  public void exit() {
+    this.exit = true;
+  }
+
+  public void notify(String path) {
+    this.toad.notify(path);
+  }
+
+  public Thread run() {
+    if (!this.thread.isEmpty()) {
+      return this.thread.get();
+    }
+
+    var thread = new Thread(() -> {
       try {
-        dev.toad.msg.ref.Message req = Async
-          .pollCompletable(() -> this.toad.pollReq())
-          .get();
+        Toad
+          .logger()
+          .log(
+            Level.INFO,
+            String.format(
+              "Server listening on %s",
+              this.toad.localAddress().toString()
+            )
+          );
+      } catch (Throwable t) {}
 
-        Middleware.Result result = Middleware.next();
-        for (var f : this.middlewares) {
-          if (!result.shouldContinue()) {
-            break;
-          }
+      while (true) {
+        try {
+          dev.toad.msg.ref.Message req = Async
+            .pollCompletable(() -> {
+              if (this.exit) {
+                throw new Exit();
+              }
 
-          if (result.isAsync()) {
-            try {
-              result.response().get();
-            } catch (Throwable e) {
-              result = Middleware.error(e);
-              break;
-            }
-            // Toad.ack(req);
-          }
+              return this.toad.pollReq();
+            })
+            .get();
+          var addr = req.addr().get();
 
-          try {
-            result = f.apply(req);
-          } catch (Throwable e) {
-            result = Middleware.error(e);
-          }
-        }
-
-        switch (result) {
-          case Middleware.ResultExit e:
-            this.toad.close();
-            return;
-          case Middleware.ResultError e:
-            result = this.exceptionHandler.apply(req, e.error);
-            break;
-          case Middleware.ResultNextSync n:
-            result = this.notFoundHandler.apply(req);
-            break;
-          case Middleware.ResultNextAsync n:
-            result = this.notFoundHandler.apply(req);
-            break;
-          default:
-            break;
-        }
-
-        req.close();
-
-        var resp = result.response().get();
-        if (resp.isEmpty()) {
           Toad
             .logger()
             .log(
-              Level.SEVERE,
-              String.format(
-                "Server never generated response for message\n%s",
-                req.toDebugString()
-              )
+              Level.FINE,
+              String.format("<== %s\n%s", addr.toString(), req.toDebugString())
             );
-        } else {
-          Async
-            .pollCompletable(() -> this.toad.sendMessage(resp.get().toOwned()))
-            .get();
+
+          Middleware.Result result = Middleware.Result.next();
+          for (var m : this.middlewares) {
+            if (!m.shouldRun.test(result, req)) {
+              continue;
+            }
+
+            try {
+              if (result.isAsync()) {
+                result.response().get();
+                // Toad.ack(req);
+              }
+
+              result = m.run(result, req);
+            } catch (Throwable e) {
+              result = Middleware.Result.error(e);
+            }
+          }
+
+          var resp = result.response().get();
+          if (resp.isEmpty()) {
+            Toad
+              .logger()
+              .log(
+                Level.SEVERE,
+                String.format(
+                  "Server never generated response for message\n%s",
+                  req.toDebugString()
+                )
+              );
+          } else {
+            var resp_ = resp.get().toOwned();
+            Toad
+              .logger()
+              .log(
+                Level.FINE,
+                String.format("==> %s\n%s", addr, resp_.toDebugString())
+              );
+            Async.pollCompletable(() -> this.toad.sendMessage(resp_)).get();
+          }
+
+          req.close();
+        } catch (Throwable e) {
+          if (e.getCause() instanceof Exit || e instanceof Exit) {
+            return;
+          }
+
+          Toad.logger().log(Level.SEVERE, e.toString());
+          e.printStackTrace();
         }
-      } catch (Throwable e) {
-        Toad.logger().log(Level.SEVERE, e.toString());
       }
-    }
+    });
+
+    thread.start();
+
+    this.thread = Optional.of(thread);
+    return thread;
   }
+
+  @Override
+  public void close() {
+    this.toad.close();
+  }
+
+  static final class Exit extends RuntimeException {}
 
   public static final class Middleware {
 
-    public static final CompletableFuture<Optional<Message>> noop =
+    final BiPredicate<Result, Message> shouldRun;
+    final BiFunction<Result, Message, Result> fun;
+
+    static final CompletableFuture<Optional<Message>> noop =
       CompletableFuture.completedFuture(Optional.empty());
 
-    public static final Function<Message, Result> notFound = m -> {
-      return Middleware.respond(m.buildResponse().code(Code.NOT_FOUND).build());
-    };
+    public static final Middleware respondNotFound =
+      Middleware.requestHandler(m ->
+        Optional.of(m.buildResponse().code(Code.NOT_FOUND).build())
+      );
 
-    public static final BiFunction<Message, Throwable, Result> debugExceptionHandler =
-      (m, e) -> {
+    public static final Middleware handleException = new Middleware(
+      (r, _m) -> r instanceof ResultError,
+      (r, m) -> {
+        var e = ((ResultError) r).error;
+
         Toad
           .logger()
           .log(
             Level.SEVERE,
-            String.format("while handling %s", m.toDebugString()),
+            String.format(
+              "Exception thrown while handling:\n%s\nException:",
+              m.toDebugString()
+            ),
             e
           );
 
-        var rep = m
-          .buildResponse()
-          .code(Code.INTERNAL_SERVER_ERROR)
-          .payload(Payload.text(e.toString()))
-          .build();
+        return Middleware.Result.respond(
+          m.buildResponse().code(Code.INTERNAL_SERVER_ERROR).build()
+        );
+      }
+    );
 
-        return Middleware.respond(rep);
-      };
+    public static final Middleware handleExceptionDebug = new Middleware(
+      (r, _m) -> r instanceof ResultError,
+      (r, m) -> {
+        var e = ((ResultError) r).error;
 
-    public static final BiFunction<Message, Throwable, Result> exceptionHandler =
-      (m, e) -> {
         Toad
           .logger()
           .log(
             Level.SEVERE,
-            String.format("while handling %s", m.toDebugString()),
+            String.format(
+              "Exception thrown while handling:\n%s\nException:",
+              m.toDebugString()
+            ),
             e
           );
-        var rep = m.buildResponse().code(Code.INTERNAL_SERVER_ERROR).build();
-        return Middleware.respond(rep);
-      };
 
-    public static Result respond(Message m) {
-      return new ResultRespondSync(m);
+        return Middleware.Result.respond(
+          m
+            .buildResponse()
+            .code(Code.INTERNAL_SERVER_ERROR)
+            .payload(Payload.text(e.toString()))
+            .build()
+        );
+      }
+    );
+
+    public static Middleware requestHandler(
+      Function<Message, Optional<Message>> f
+    ) {
+      return new Middleware(
+        (r, _m) -> !r.isFinal(),
+        (_result, request) ->
+          f
+            .apply(request)
+            .map(Middleware.Result::respond)
+            .orElse(Middleware.Result.next())
+      );
     }
 
-    public static Result respond(CompletableFuture<Message> m) {
-      return new ResultRespondAsync(m);
+    public static Middleware requestHandlerAsync(
+      Function<Message, Optional<CompletableFuture<Message>>> f
+    ) {
+      return new Middleware(
+        (r, _m) -> !r.isFinal(),
+        (_result, request) ->
+          f
+            .apply(request)
+            .map(Middleware.Result::respond)
+            .orElse(Middleware.Result.next())
+      );
     }
 
-    public static Result error(Throwable e) {
-      return new ResultError(e);
+    public static Middleware responseConsumer(Consumer<Message> f) {
+      return new Middleware(
+        (r, _m) ->
+          r instanceof ResultRespondSync || r instanceof ResultRespondAsync,
+        (res, request) -> {
+          try {
+            var rep = res.response().get().get();
+            f.accept(rep);
+            return res;
+          } catch (Throwable e) {
+            throw new RuntimeException(e);
+          }
+        }
+      );
     }
 
-    public static Result exit() {
-      return new ResultExit();
+    public static Middleware exceptionHandler(Function<Throwable, Result> f) {
+      return new Middleware(
+        (r, _m) -> r instanceof ResultError,
+        (res, request) -> f.apply(((ResultError) res).error)
+      );
     }
 
-    public static Result next() {
-      return new ResultNextSync();
+    public Middleware(
+      BiPredicate<Result, Message> shouldRun,
+      BiFunction<Result, Message, Result> fun
+    ) {
+      this.fun = fun;
+      this.shouldRun = shouldRun;
     }
 
-    public static Result next(CompletableFuture<Void> work) {
-      return new ResultNextAsync(work);
+    public Result run(Result res, Message msg) {
+      return this.fun.apply(res, msg);
+    }
+
+    public Middleware filter(BiPredicate<Result, Message> f) {
+      return new Middleware(
+        (r, m) -> f.test(r, m) && this.shouldRun.test(r, m),
+        this.fun
+      );
     }
 
     public static sealed interface Result
       permits
-        ResultExit,
         ResultError,
         ResultNextSync,
         ResultNextAsync,
         ResultRespondSync,
         ResultRespondAsync {
-      public boolean shouldContinue();
+      public static Result respond(Message m) {
+        return new ResultRespondSync(m);
+      }
+
+      public static Result respond(CompletableFuture<Message> m) {
+        return new ResultRespondAsync(m);
+      }
+
+      public static Result error(Throwable e) {
+        return new ResultError(e);
+      }
+
+      public static Result next() {
+        return new ResultNextSync();
+      }
+
+      public static Result next(CompletableFuture<Void> work) {
+        return new ResultNextAsync(work);
+      }
+
+      public boolean isFinal();
 
       public boolean isAsync();
 
       public CompletableFuture<Optional<Message>> response();
-    }
-
-    public static final class ResultExit implements Result {
-
-      public ResultExit() {}
-
-      @Override
-      public boolean shouldContinue() {
-        return false;
-      }
-
-      @Override
-      public boolean isAsync() {
-        return false;
-      }
-
-      @Override
-      public CompletableFuture<Optional<Message>> response() {
-        return Middleware.noop;
-      }
     }
 
     public static final class ResultError implements Result {
@@ -213,8 +311,8 @@ public final class Server {
       }
 
       @Override
-      public boolean shouldContinue() {
-        return false;
+      public boolean isFinal() {
+        return true;
       }
 
       @Override
@@ -233,8 +331,8 @@ public final class Server {
       public ResultNextSync() {}
 
       @Override
-      public boolean shouldContinue() {
-        return true;
+      public boolean isFinal() {
+        return false;
       }
 
       @Override
@@ -257,8 +355,8 @@ public final class Server {
       }
 
       @Override
-      public boolean shouldContinue() {
-        return true;
+      public boolean isFinal() {
+        return false;
       }
 
       @Override
@@ -281,8 +379,8 @@ public final class Server {
       }
 
       @Override
-      public boolean shouldContinue() {
-        return false;
+      public boolean isFinal() {
+        return true;
       }
 
       @Override
@@ -305,8 +403,8 @@ public final class Server {
       }
 
       @Override
-      public boolean shouldContinue() {
-        return false;
+      public boolean isFinal() {
+        return true;
       }
 
       @Override
@@ -324,120 +422,104 @@ public final class Server {
   public static final class Builder {
 
     final Toad toad;
-    final ArrayList<Function<Message, Middleware.Result>> middlewares =
-      new ArrayList<>();
-    Function<Message, Middleware.Result> notFoundHandler = Middleware.notFound;
-    BiFunction<Message, Throwable, Middleware.Result> exceptionHandler =
-      Middleware.exceptionHandler;
+    final ArrayList<Middleware> middlewares = new ArrayList<>();
 
     Builder(Toad toad) {
       this.toad = toad;
     }
 
-    public Builder middleware(Function<Message, Middleware.Result> f) {
-      this.middlewares.add(f);
+    public Builder middleware(Middleware m) {
+      this.middlewares.add(m);
       return this;
     }
 
-    public Builder when(
-      Predicate<Message> pred,
-      Function<Message, Middleware.Result> f
-    ) {
-      return this.middleware(m -> {
-          if (pred.test(m)) {
-            return f.apply(m);
-          } else {
-            return Middleware.next();
-          }
-        });
+    public Builder put(String path, Function<Message, Optional<Message>> f) {
+      return this.put(path, Middleware.requestHandler(f));
     }
 
-    public Builder put(String path, Function<Message, Middleware.Result> f) {
-      return this.when(
-          m ->
-            Code.eq.test(m.code(), Code.PUT) &&
-            m
+    public Builder put(String path, Middleware m) {
+      return this.middleware(
+          m.filter((_r, req) ->
+            Code.eq.test(req.code(), Code.PUT) &&
+            req
               .getPath()
               .map(p -> p.matches(path))
-              .orElse(path == null || path.isEmpty()),
-          f
+              .orElse(path == null || path.isEmpty())
+          )
         );
     }
 
-    public Builder post(String path, Function<Message, Middleware.Result> f) {
-      return this.when(
-          m ->
-            Code.eq.test(m.code(), Code.POST) &&
-            m
+    public Builder post(String path, Function<Message, Optional<Message>> f) {
+      return this.post(path, Middleware.requestHandler(f));
+    }
+
+    public Builder post(String path, Middleware m) {
+      return this.middleware(
+          m.filter((_r, req) ->
+            Code.eq.test(req.code(), Code.POST) &&
+            req
               .getPath()
               .map(p -> p.matches(path))
-              .orElse(path == null || path.isEmpty()),
-          f
+              .orElse(path == null || path.isEmpty())
+          )
         );
     }
 
-    public Builder delete(String path, Function<Message, Middleware.Result> f) {
-      return this.when(
-          m ->
-            Code.eq.test(m.code(), Code.DELETE) &&
-            m
+    public Builder get(String path, Function<Message, Optional<Message>> f) {
+      return this.get(path, Middleware.requestHandler(f));
+    }
+
+    public Builder get(String path, Middleware m) {
+      return this.middleware(
+          m.filter((_r, req) ->
+            Code.eq.test(req.code(), Code.GET) &&
+            req
               .getPath()
               .map(p -> p.matches(path))
-              .orElse(path == null || path.isEmpty()),
-          f
+              .orElse(path == null || path.isEmpty())
+          )
         );
     }
 
-    public Builder get(String path, Function<Message, Middleware.Result> f) {
-      return this.when(
-          m ->
-            Code.eq.test(m.code(), Code.GET) &&
-            m
+    public Builder delete(String path, Function<Message, Optional<Message>> f) {
+      return this.delete(path, Middleware.requestHandler(f));
+    }
+
+    public Builder delete(String path, Middleware m) {
+      return this.middleware(
+          m.filter((_r, req) ->
+            Code.eq.test(req.code(), Code.DELETE) &&
+            req
               .getPath()
               .map(p -> p.matches(path))
-              .orElse(path == null || path.isEmpty()),
-          f
+              .orElse(path == null || path.isEmpty())
+          )
         );
     }
 
-    public Builder tap(Consumer<Message> f) {
-      return this.middleware(m -> {
-          f.accept(m);
-          return Middleware.next();
-        });
+    public Builder onRequest(Consumer<Message> f) {
+      return this.middleware(
+          Middleware.requestHandler(m -> {
+            f.accept(m);
+            return Optional.empty();
+          })
+        );
     }
 
-    public Builder tapAsync(Function<Message, CompletableFuture<?>> f) {
-      return this.middleware(m -> {
-          return Middleware.next(f.apply(m).thenAccept(_void -> {}));
-        });
+    public Builder onResponse(Consumer<Message> f) {
+      return this.middleware(Middleware.responseConsumer(f));
     }
 
-    public Builder debugExceptions() {
-      return this.exceptionHandler(Middleware.debugExceptionHandler);
-    }
-
-    public Builder exceptionHandler(
-      BiFunction<Message, Throwable, Middleware.Result> handler
-    ) {
-      this.exceptionHandler = handler;
-      return this;
-    }
-
-    public Builder notFoundHandler(
-      Function<Message, Middleware.Result> handler
-    ) {
-      this.notFoundHandler = handler;
-      return this;
+    public Server buildDebugExceptionHandler() {
+      this.middleware(Middleware.handleExceptionDebug);
+      this.middleware(Middleware.respondNotFound);
+      return new Server(this.toad, this.middlewares);
     }
 
     public Server build() {
-      return new Server(
-        this.toad,
-        this.middlewares,
-        this.notFoundHandler,
-        this.exceptionHandler
-      );
+      this.middleware(Middleware.handleException);
+      this.middleware(Middleware.respondNotFound);
+      return new Server(this.toad, this.middlewares);
     }
   }
 }

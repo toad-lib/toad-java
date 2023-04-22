@@ -6,6 +6,7 @@ import dev.toad.msg.Payload;
 import dev.toad.msg.Token;
 import dev.toad.msg.Type;
 import dev.toad.msg.option.Host;
+import dev.toad.msg.option.Observe;
 import dev.toad.msg.option.Path;
 import dev.toad.msg.option.Query;
 import java.net.InetAddress;
@@ -48,7 +49,7 @@ public final class Message
               : conResponseToNonRequest              ? Type.CON
               : Type.NON;
 
-    return Message.copyOf(other).unsetId().type(type);
+    return Message.copyOf(other).unsetId().unsetOption(Observe.number).type(type);
   }
 
   public static Message copyOf(dev.toad.msg.Message other) {
