@@ -10,7 +10,6 @@ mod runtime {
 
   use toad::config::Config;
   use toad::platform::{Effect, Platform};
-  use toad::step::runtime::Runtime as DefaultSteps;
   use toad_jni::java::io::IOException;
   use toad_jni::java::nio::channels::PeekableDatagramChannel;
   use toad_jni::java::util::logging::{ConsoleHandler, Level, Logger};
@@ -30,7 +29,17 @@ mod runtime {
     type Effects = Vec<Effect<Self>>;
   }
 
-  type Steps = DefaultSteps<PlatformTypes, naan::hkt::Vec, naan::hkt::BTreeMap>;
+  #[rustfmt::skip]
+  pub type Steps =
+    toad::step::runtime::Observe<PlatformTypes, naan::hkt::Vec,
+    toad::step::runtime::BufferResponses<PlatformTypes, naan::hkt::BTreeMap,
+    toad::step::runtime::HandleAcks<naan::hkt::BTreeMap,
+    toad::step::runtime::Retry<PlatformTypes, naan::hkt::Vec,
+    toad::step::provision_tokens::ProvisionTokens<
+    toad::step::runtime::ProvisionIds<PlatformTypes, naan::hkt::BTreeMap, naan::hkt::Vec,
+    toad::step::parse::Parse<
+    ()
+    >>>>>>>;
 
   pub struct Runtime {
     steps: Steps,
@@ -41,22 +50,7 @@ mod runtime {
   }
 
   impl Runtime {
-    pub fn new(e: &mut java::Env,
-               log_level: Level,
-               config: Config,
-               channel: PeekableDatagramChannel)
-               -> Self {
-      let logger = Logger::get_logger(e, "dev.toad");
-
-      if logger.uses_parent_handlers(e) {
-        let handler = ConsoleHandler::new(e);
-        handler.set_level(e, log_level);
-
-        logger.use_parent_handlers(e, false);
-        logger.add_handler(e, handler.to_handler());
-        logger.set_level(e, log_level);
-      }
-
+    pub fn new(logger: Logger, config: Config, channel: PeekableDatagramChannel) -> Self {
       Self { steps: Default::default(),
              config,
              channel,

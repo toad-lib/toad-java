@@ -1,28 +1,46 @@
 package dev.toad;
 
+import dev.toad.Async;
 import dev.toad.msg.Message;
 import dev.toad.msg.Token;
 import dev.toad.msg.option.Observe;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 public class ClientObserveStream implements AutoCloseable {
 
-  State state;
+  boolean closed;
   CompletableFuture<Message> initial;
   Optional<Token> token = Optional.empty();
   final Client client;
   final Message message;
 
   public ClientObserveStream(Client client, Message message) {
-    this.state = State.OPEN;
+    this.closed = false;
     this.client = client;
     this.message = message.buildCopy().option(Observe.REGISTER).build();
     this.initial = client.send(this.message);
   }
 
+  public Async.LoopHandle subscribe(Consumer<Message> event) {
+    return Async.loop(
+      () -> {
+        try {
+          event.accept(this.next().get());
+        } catch (ExecutionException | InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      },
+      () -> {
+        this.close();
+      }
+    );
+  }
+
   public CompletableFuture<Message> next() {
-    if (State.eq.test(State.CLOSED, this.state)) {
+    if (this.closed) {
       throw new RuntimeException(
         "ClientObserveStream.next() invoked after .close()"
       );
@@ -48,28 +66,6 @@ public class ClientObserveStream implements AutoCloseable {
         .get();
     } catch (Throwable t) {}
 
-    this.state = State.CLOSED;
-  }
-
-  public static final class State {
-
-    public static final Eq<State> eq = Eq.int_.contramap((State s) -> s.state);
-
-    public static final State OPEN = new State(0);
-    public static final State CLOSED = new State(1);
-
-    final int state;
-
-    State(int state) {
-      this.state = state;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return switch (other) {
-        case State s -> State.eq.test(this, s);
-        default -> false;
-      };
-    }
+    this.closed = true;
   }
 }

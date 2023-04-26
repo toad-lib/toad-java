@@ -10,6 +10,7 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 public final class Client implements AutoCloseable {
 
@@ -17,6 +18,14 @@ public final class Client implements AutoCloseable {
 
   Client(Toad toad) {
     this.toad = toad;
+  }
+
+  public CompletableFuture<Void> ping(String uri)
+    throws URISyntaxException, UnknownHostException {
+    return this.send(
+        Message.builder().uri(uri).type(Type.CON).code(Code.EMPTY).build()
+      )
+      .thenAccept(_m -> {});
   }
 
   public CompletableFuture<Message> get(String uri)
@@ -98,6 +107,7 @@ public final class Client implements AutoCloseable {
       );
     }
 
+    this.toad.logger().log(Level.FINE, Toad.LogMessage.tx(message));
     return Async.pollCompletable(() -> this.toad.sendMessage(message));
   }
 
@@ -114,7 +124,10 @@ public final class Client implements AutoCloseable {
   ) {
     return Async
       .pollCompletable(() -> this.toad.pollResp(t, addr))
-      .thenApply(msg -> msg.toOwned());
+      .thenApply(msg -> {
+        this.toad.logger().log(Level.FINE, Toad.LogMessage.rx(msg));
+        return msg.toOwned();
+      });
   }
 
   @Override

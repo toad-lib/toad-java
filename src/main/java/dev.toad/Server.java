@@ -1,25 +1,30 @@
 package dev.toad;
 
+import dev.toad.Async;
 import dev.toad.msg.Code;
 import dev.toad.msg.Message;
 import dev.toad.msg.Payload;
+import dev.toad.msg.Type;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
-import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class Server implements AutoCloseable {
 
-  boolean exit = false;
-  Optional<Thread> thread = Optional.empty();
+  boolean closed = false;
+  Optional<Async.LoopHandle> loopHandle = Optional.empty();
   final Toad toad;
   final ArrayList<Middleware> middlewares;
 
@@ -28,113 +33,137 @@ public final class Server implements AutoCloseable {
     this.middlewares = ms;
   }
 
-  public void exit() {
-    this.exit = true;
+  public DatagramChannel channel() {
+    return this.toad.channel();
+  }
+
+  dev.toad.msg.ref.Message blockUntilRequest()
+    throws InterruptedException, ExecutionException {
+    return Async
+      .pollCompletable(() -> {
+        if (this.closed) {
+          throw new Exit();
+        }
+
+        return this.toad.pollReq();
+      })
+      .get();
+  }
+
+  void tick() {
+    try {
+      var req = this.blockUntilRequest();
+      var addr = req.addr().get();
+
+      this.toad.logger().log(Level.FINE, Toad.LogMessage.rx(req));
+
+      var result = Middleware.Result.next();
+      var acked = new AtomicBoolean(false);
+      for (var m : this.middlewares) {
+        var ctx = new Middleware.Context(this.toad.logger(), result, req);
+        result =
+          Middleware.tick(
+            m,
+            ctx,
+            () -> {
+              if (req.type() != Type.CON) {
+                return;
+              }
+
+              acked.set(true);
+              this.toad.logger().log(Level.FINE, LogMessage.earlyAck(req));
+              var ack = req
+                .buildResponse()
+                .code(Code.EMPTY)
+                .type(Type.ACK)
+                .build();
+              this.toad.logger().log(Level.FINE, Toad.LogMessage.tx(ack));
+              try {
+                Async.pollCompletable(() -> this.toad.sendMessage(ack)).get();
+              } catch (Throwable t) {
+                this.toad.logger().log(Level.SEVERE, Toad.LogMessage.tx(ack));
+              }
+            }
+          );
+      }
+
+      var resp = result.response().get();
+      if (resp.isEmpty()) {
+        this.toad.logger().log(Level.SEVERE, LogMessage.unhandledRequest(req));
+      } else {
+        var resp_ = resp.get();
+        var resp__ = resp_.type() == Type.ACK && acked.get()
+          ? resp_.buildCopy().type(Type.CON).build()
+          : resp_;
+        this.toad.logger().log(Level.FINE, Toad.LogMessage.tx(resp__));
+        Async.pollCompletable(() -> this.toad.sendMessage(resp__)).get();
+      }
+
+      req.close();
+    } catch (Throwable e) {
+      if (e.getCause() instanceof Exit || e instanceof Exit) {
+        return;
+      }
+
+      this.toad.logger().log(Level.SEVERE, e.toString());
+      e.printStackTrace();
+    }
   }
 
   public void notify(String path) {
     this.toad.notify(path);
   }
 
-  public Thread run() {
-    if (!this.thread.isEmpty()) {
-      return this.thread.get();
+  public Async.LoopHandle run() {
+    if (!this.loopHandle.isEmpty()) {
+      return this.loopHandle.get();
     }
 
-    var thread = new Thread(() -> {
-      try {
-        Toad
-          .logger()
-          .log(
-            Level.INFO,
-            String.format(
-              "Server listening on %s",
-              this.toad.localAddress().toString()
-            )
-          );
-      } catch (Throwable t) {}
+    try {
+      this.toad.logger()
+        .log(Level.INFO, LogMessage.startup(this.toad.localAddress()));
+    } catch (Throwable t) {}
 
-      while (true) {
-        try {
-          dev.toad.msg.ref.Message req = Async
-            .pollCompletable(() -> {
-              if (this.exit) {
-                throw new Exit();
-              }
-
-              return this.toad.pollReq();
-            })
-            .get();
-          var addr = req.addr().get();
-
-          Toad
-            .logger()
-            .log(
-              Level.FINE,
-              String.format("<== %s\n%s", addr.toString(), req.toDebugString())
-            );
-
-          Middleware.Result result = Middleware.Result.next();
-          for (var m : this.middlewares) {
-            if (!m.shouldRun.test(result, req)) {
-              continue;
-            }
-
-            try {
-              if (result.isAsync()) {
-                result.response().get();
-                // Toad.ack(req);
-              }
-
-              result = m.run(result, req);
-            } catch (Throwable e) {
-              result = Middleware.Result.error(e);
-            }
-          }
-
-          var resp = result.response().get();
-          if (resp.isEmpty()) {
-            Toad
-              .logger()
-              .log(
-                Level.SEVERE,
-                String.format(
-                  "Server never generated response for message\n%s",
-                  req.toDebugString()
-                )
-              );
-          } else {
-            var resp_ = resp.get().toOwned();
-            Toad
-              .logger()
-              .log(
-                Level.FINE,
-                String.format("==> %s\n%s", addr, resp_.toDebugString())
-              );
-            Async.pollCompletable(() -> this.toad.sendMessage(resp_)).get();
-          }
-
-          req.close();
-        } catch (Throwable e) {
-          if (e.getCause() instanceof Exit || e instanceof Exit) {
-            return;
-          }
-
-          Toad.logger().log(Level.SEVERE, e.toString());
-          e.printStackTrace();
-        }
-      }
-    });
-
-    thread.start();
-
-    this.thread = Optional.of(thread);
-    return thread;
+    this.loopHandle = Optional.of(Async.loop(() -> this.tick()));
+    return this.loopHandle.get();
   }
 
   @Override
   public void close() {
+    this.closed = true;
+
+    try {
+      if (!this.loopHandle.isEmpty()) {
+        this.loopHandle.get().stop();
+      }
+    } catch (Throwable e) {}
+
     this.toad.close();
+  }
+
+  static final class LogMessage {
+
+    static String startup(InetSocketAddress addr) {
+      return String.format("Server listening on %s", addr.toString());
+    }
+
+    static String earlyAck(Message req) {
+      return String.format("Separately ACKing request %s", req.toDebugString());
+    }
+
+    static String unhandledRequest(Message req) {
+      return String.format(
+        "Server never generated response for message\n%s",
+        req
+      );
+    }
+
+    static String ex(Message m) {
+      return String.format(
+        "Exception thrown while handling:\n%s\nException:",
+        m.toDebugString()
+      );
+    }
   }
 
   static final class Exit extends RuntimeException {}
@@ -142,7 +171,7 @@ public final class Server implements AutoCloseable {
   public static final class Middleware {
 
     final BiPredicate<Result, Message> shouldRun;
-    final BiFunction<Result, Message, Result> fun;
+    final Function<Context, Result> fun;
 
     static final CompletableFuture<Optional<Message>> noop =
       CompletableFuture.completedFuture(Optional.empty());
@@ -152,46 +181,36 @@ public final class Server implements AutoCloseable {
         Optional.of(m.buildResponse().code(Code.NOT_FOUND).build())
       );
 
+    public static final Middleware handlePing = Middleware.requestHandler(m ->
+      Type.eq.test(m.type(), Type.CON) && Code.eq.test(m.code(), Code.EMPTY)
+        ? Optional.of(
+          m.buildResponse().code(Code.EMPTY).type(Type.RESET).build()
+        )
+        : Optional.empty()
+    );
+
     public static final Middleware handleException = new Middleware(
       (r, _m) -> r instanceof ResultError,
-      (r, m) -> {
-        var e = ((ResultError) r).error;
+      ctx -> {
+        var e = ((ResultError) ctx.result).error;
 
-        Toad
-          .logger()
-          .log(
-            Level.SEVERE,
-            String.format(
-              "Exception thrown while handling:\n%s\nException:",
-              m.toDebugString()
-            ),
-            e
-          );
+        ctx.logger.log(Level.SEVERE, LogMessage.ex(ctx.request), e);
 
         return Middleware.Result.respond(
-          m.buildResponse().code(Code.INTERNAL_SERVER_ERROR).build()
+          ctx.request.buildResponse().code(Code.INTERNAL_SERVER_ERROR).build()
         );
       }
     );
 
     public static final Middleware handleExceptionDebug = new Middleware(
       (r, _m) -> r instanceof ResultError,
-      (r, m) -> {
-        var e = ((ResultError) r).error;
+      ctx -> {
+        var e = ((ResultError) ctx.result).error;
 
-        Toad
-          .logger()
-          .log(
-            Level.SEVERE,
-            String.format(
-              "Exception thrown while handling:\n%s\nException:",
-              m.toDebugString()
-            ),
-            e
-          );
+        ctx.logger.log(Level.SEVERE, LogMessage.ex(ctx.request), e);
 
         return Middleware.Result.respond(
-          m
+          ctx.request
             .buildResponse()
             .code(Code.INTERNAL_SERVER_ERROR)
             .payload(Payload.text(e.toString()))
@@ -200,14 +219,31 @@ public final class Server implements AutoCloseable {
       }
     );
 
+    static Result tick(Middleware m, Context ctx, Runnable separatelyAck) {
+      if (!m.shouldRun.test(ctx.result, ctx.request)) {
+        return ctx.result;
+      }
+
+      try {
+        if (ctx.result.isAsync()) {
+          ctx.result.response().get();
+          separatelyAck.run();
+        }
+
+        return m.run(ctx);
+      } catch (Throwable e) {
+        return Middleware.Result.error(e);
+      }
+    }
+
     public static Middleware requestHandler(
       Function<Message, Optional<Message>> f
     ) {
       return new Middleware(
         (r, _m) -> !r.isFinal(),
-        (_result, request) ->
+        ctx ->
           f
-            .apply(request)
+            .apply(ctx.request)
             .map(Middleware.Result::respond)
             .orElse(Middleware.Result.next())
       );
@@ -218,9 +254,9 @@ public final class Server implements AutoCloseable {
     ) {
       return new Middleware(
         (r, _m) -> !r.isFinal(),
-        (_result, request) ->
+        ctx ->
           f
-            .apply(request)
+            .apply(ctx.request)
             .map(Middleware.Result::respond)
             .orElse(Middleware.Result.next())
       );
@@ -230,11 +266,11 @@ public final class Server implements AutoCloseable {
       return new Middleware(
         (r, _m) ->
           r instanceof ResultRespondSync || r instanceof ResultRespondAsync,
-        (res, request) -> {
+        ctx -> {
           try {
-            var rep = res.response().get().get();
+            var rep = ctx.result.response().get().get();
             f.accept(rep);
-            return res;
+            return ctx.result;
           } catch (Throwable e) {
             throw new RuntimeException(e);
           }
@@ -245,20 +281,20 @@ public final class Server implements AutoCloseable {
     public static Middleware exceptionHandler(Function<Throwable, Result> f) {
       return new Middleware(
         (r, _m) -> r instanceof ResultError,
-        (res, request) -> f.apply(((ResultError) res).error)
+        ctx -> f.apply(((ResultError) ctx.result).error)
       );
     }
 
     public Middleware(
       BiPredicate<Result, Message> shouldRun,
-      BiFunction<Result, Message, Result> fun
+      Function<Context, Result> fun
     ) {
       this.fun = fun;
       this.shouldRun = shouldRun;
     }
 
-    public Result run(Result res, Message msg) {
-      return this.fun.apply(res, msg);
+    public Result run(Context context) {
+      return this.fun.apply(context);
     }
 
     public Middleware filter(BiPredicate<Result, Message> f) {
@@ -266,6 +302,19 @@ public final class Server implements AutoCloseable {
         (r, m) -> f.test(r, m) && this.shouldRun.test(r, m),
         this.fun
       );
+    }
+
+    public static final class Context {
+
+      public final Logger logger;
+      public final Result result;
+      public final Message request;
+
+      public Context(Logger logger, Result result, Message request) {
+        this.logger = logger;
+        this.result = result;
+        this.request = request;
+      }
     }
 
     public static sealed interface Result
@@ -512,12 +561,14 @@ public final class Server implements AutoCloseable {
 
     public Server buildDebugExceptionHandler() {
       this.middleware(Middleware.handleExceptionDebug);
+      this.middleware(Middleware.handlePing);
       this.middleware(Middleware.respondNotFound);
       return new Server(this.toad, this.middlewares);
     }
 
     public Server build() {
       this.middleware(Middleware.handleException);
+      this.middleware(Middleware.handlePing);
       this.middleware(Middleware.respondNotFound);
       return new Server(this.toad, this.middlewares);
     }

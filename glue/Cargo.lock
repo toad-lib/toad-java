@@ -504,9 +504,9 @@ checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
 
 [[package]]
 name = "toad"
-version = "0.17.5"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a19447d2692bd6d8b1c0c10457f42394da7b3f633b96c8705825aca91c080ad"
+checksum = "3d2a40ef725839735e253c13664aef9eb9989c1c1f79ea42f51f9b0e3076e6e6"
 dependencies = [
  "embedded-time",
  "log",
@@ -527,6 +527,7 @@ dependencies = [
  "toad-map",
  "toad-msg",
  "toad-stem",
+ "toad-string",
  "toad-writable",
 ]
 
@@ -582,9 +583,9 @@ dependencies = [
 
 [[package]]
 name = "toad-jni"
-version = "0.14.1"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15d9feb2f3a24a6d67aa5672d37893d160a57b9dbbc62d09a0f243abaec6c11f"
+checksum = "667f57c04355c23f3d295c8a21da8de70eaebd11b075d890d051bfc6381261ca"
 dependencies = [
  "embedded-time",
  "jni",
@@ -650,6 +651,18 @@ name = "toad-stem"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "834a7cc46ed626b24dfb861d3de19cdd666fa945f5bd1b4d2d675551afef927c"
+
+[[package]]
+name = "toad-string"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdad9197bf6974091949a6d3e00946558d69e0d7b3d159283c6c43fffdef59dc"
+dependencies = [
+ "tinyvec",
+ "toad-array 0.2.3",
+ "toad-len",
+ "toad-writable",
+]
 
 [[package]]
 name = "toad-writable"

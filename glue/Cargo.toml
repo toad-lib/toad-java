@@ -12,10 +12,10 @@ default = ["e2e"]
 e2e = []
 
 [dependencies]
+toad = "0.19.1"
+toad-jni = "0.16.1"
 jni = "0.21.1"
 nb = "1"
-toad = "0.17.5"
-toad-jni = "0.14.1"
 no-std-net = "0.6"
 toad-msg = "0.18.1"
 tinyvec = {version = "1.5", default_features = false, features = ["rustc_1_55"]}

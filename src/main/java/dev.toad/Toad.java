@@ -11,16 +11,12 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.logging.ConsoleHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public final class Toad implements AutoCloseable {
-
-  public static Logger logger() {
-    // Configured in `glue::Runtime::new()`
-    var l = Logger.getLogger("dev.toad");
-    l.setUseParentHandlers(false);
-    return l;
-  }
 
   static native Config defaultConfigImpl();
 
@@ -42,13 +38,14 @@ public final class Toad implements AutoCloseable {
     System.loadLibrary("toad_java_glue");
   }
 
+  final Logger logger;
   final Ptr ptr;
   final Config config;
   final DatagramChannel channel;
 
   static native void teardown();
 
-  static native long init(DatagramChannel chan, Config o);
+  static native long init(Logger logger, DatagramChannel chan, Config o);
 
   static native Optional<IdAndToken> sendMessage(
     long ptr,
@@ -85,13 +82,31 @@ public final class Toad implements AutoCloseable {
   }
 
   Toad(Config o, DatagramChannel channel) {
+    this.logger = Logger.getLogger("dev.toad");
     this.config = o;
     this.channel = channel;
-    this.ptr = Ptr.register(this.getClass(), this.init(this.channel, o));
+    this.ptr =
+      Ptr.register(this.getClass(), this.init(this.logger, this.channel, o));
+  }
+
+  Toad(Config o, Logger logger, DatagramChannel channel) {
+    this.logger = logger;
+    this.config = o;
+    this.channel = channel;
+    this.ptr =
+      Ptr.register(this.getClass(), this.init(this.logger, this.channel, o));
+  }
+
+  public DatagramChannel channel() {
+    return this.channel;
   }
 
   public Config config() {
     return this.config;
+  }
+
+  public Logger logger() {
+    return this.logger;
   }
 
   public InetSocketAddress localAddress() throws IOException {
@@ -122,6 +137,25 @@ public final class Toad implements AutoCloseable {
     }
   }
 
+  static final class LogMessage {
+
+    static String rx(Message msg) {
+      return String.format(
+        "<== %s\n%s",
+        msg.addr().get().toString(),
+        msg.toDebugString()
+      );
+    }
+
+    static String tx(Message msg) {
+      return String.format(
+        "==> %s\n%s",
+        msg.addr().get().toString(),
+        msg.toDebugString()
+      );
+    }
+  }
+
   public interface BuilderRequiresSocket {
     Toad.Builder port(short port);
     Toad.Builder address(InetSocketAddress addr);
@@ -134,14 +168,33 @@ public final class Toad implements AutoCloseable {
     Config.Msg.Builder msg = Config.Msg.builder();
     Optional<DatagramChannel> channel = Optional.empty();
     Optional<java.util.logging.Level> logLevel = Optional.empty();
+    Optional<java.util.logging.Formatter> logFormatter = Optional.empty();
+    Optional<String> loggerName = Optional.empty();
     u8 concurrency = Toad.defaultConfig().concurrency;
 
     Builder() {}
 
+    Logger logger() {
+      var logger = Logger.getLogger(this.loggerName.orElse("dev.toad"));
+      if (logger.getUseParentHandlers()) {
+        var level = this.logLevel.orElse(Level.INFO);
+
+        var handler = new ConsoleHandler();
+        handler.setFormatter(this.logFormatter.orElse(new SimpleFormatter()));
+        handler.setLevel(level);
+
+        logger.setUseParentHandlers(false);
+        logger.addHandler(handler);
+        logger.setLevel(level);
+      }
+
+      return logger;
+    }
+
     public Client buildClient() throws IOException {
       if (this.ioException.isEmpty()) {
-        var cfg = new Config(this.logLevel, this.concurrency, this.msg.build());
-        var toad = new Toad(cfg, this.channel.get());
+        var cfg = new Config(this.concurrency, this.msg.build());
+        var toad = new Toad(cfg, this.logger(), this.channel.get());
         return new Client(toad);
       } else {
         throw this.ioException.get();
@@ -150,8 +203,8 @@ public final class Toad implements AutoCloseable {
 
     public Server.Builder server() throws IOException {
       if (this.ioException.isEmpty()) {
-        var cfg = new Config(this.logLevel, this.concurrency, this.msg.build());
-        var toad = new Toad(cfg, this.channel.get());
+        var cfg = new Config(this.concurrency, this.msg.build());
+        var toad = new Toad(cfg, this.logger(), this.channel.get());
         return new Server.Builder(toad);
       } else {
         throw this.ioException.get();
@@ -169,6 +222,16 @@ public final class Toad implements AutoCloseable {
 
     public Builder logLevel(java.util.logging.Level level) {
       this.logLevel = Optional.of(level);
+      return this;
+    }
+
+    public Builder logFormatter(java.util.logging.Formatter f) {
+      this.logFormatter = Optional.of(f);
+      return this;
+    }
+
+    public Builder loggerName(String name) {
+      this.loggerName = Optional.of(name);
       return this;
     }
 
@@ -199,16 +262,10 @@ public final class Toad implements AutoCloseable {
 
   public static final class Config {
 
-    final Optional<java.util.logging.Level> logLevel;
     final u8 concurrency;
     final Msg msg;
 
-    Config(
-      Optional<java.util.logging.Level> logLevel,
-      u8 concurrency,
-      Msg msg
-    ) {
-      this.logLevel = logLevel;
+    Config(u8 concurrency, Msg msg) {
       this.concurrency = concurrency;
       this.msg = msg;
     }
@@ -220,10 +277,6 @@ public final class Toad implements AutoCloseable {
         o.msg.equals(this.msg);
         default -> false;
       };
-    }
-
-    public java.util.logging.Level logLevel() {
-      return this.logLevel.orElse(java.util.logging.Level.INFO);
     }
 
     public InetSocketAddress addr() {
